@@ -53,9 +53,17 @@ def read_only_the_start(target: str) -> SpokenTurn:
 
 def mispronounce(target: str) -> SpokenTurn:
     """Swap the hardest word for a near neighbour, the way a child
-    substitutes a sound they cannot make yet."""
+    substitutes a sound they cannot make yet.
+
+    Every swap must change the SOUND, not merely the spelling. An earlier
+    version included sun -> son, which is a homophone: the synthesiser
+    produced identical audio, the recogniser transcribed it correctly,
+    and a correct score was recorded as a false positive. Homophones are
+    invisible to any tutor that listens, and rightly so, because the
+    child did pronounce the word correctly.
+    """
     swaps = {"thick": "tick", "three": "tree", "this": "dis", "shed": "sed",
-             "chips": "ships", "sun": "son", "soft": "sof", "shall": "sal"}
+             "chips": "ships", "soft": "sof", "shall": "sal", "sailed": "sale"}
     words = _words(target)
     said_words = [swaps.get(w, w) for w in words]
     said = " ".join(said_words)

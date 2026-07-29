@@ -139,14 +139,23 @@ failure that matters most, which is correcting a child who read perfectly.
 through Higgs TTS, and the real Whisper listens. This is the only layer that
 exercises the actual recogniser rather than a fabricated transcript. Results
 across 21 spoken turns: zero false corrections, and the recogniser reproduced
-what was voiced in 17 of 21 cases.
+what was voiced in 18 of 21 cases.
 
-That evaluation also produced hard evidence for a limitation this project had
-only been able to assert. In two of three cases where the child agent
-deliberately mispronounced a word, Whisper silently repaired it. A child who
-voiced "the son is hot" was transcribed as "The sun is hot." and scored one
-hundred percent. S2 cannot detect this, because nothing about the transcript
-looks wrong. Fabrication is visible; repair is not.
+That evaluation produced evidence for a limitation this project had only been
+able to assert. A child agent that voiced "dis fish is big" was transcribed as
+"where this fish is big." and scored one hundred percent. The child
+substituted a sound they could not make, the recogniser repaired it, and the
+system praised the mistake. S2 cannot detect this, because nothing about the
+transcript looks wrong. Fabrication is visible; repair is not.
+
+Writing this test also demonstrated why audio evaluation is worth the cost.
+An earlier version of the child agent mispronounced "sun" as "son", which the
+report duly flagged as a repair by the recogniser. It was nothing of the kind.
+The two words are homophones, the synthesiser produced identical audio, and
+the recogniser transcribed it correctly. A tutor that listens cannot
+distinguish homophones and should not try, because the child pronounced the
+word correctly. The fabricated transcript suites could never have surfaced
+that distinction, because they never produce sound.
 
 ## Project layout
 
@@ -220,6 +229,10 @@ better acoustic model rather than a looser threshold.
 **Phonemes are inferred from spelling.** Sounds are counted only at positions
 where spelling predicts pronunciation, and the story catalogue is built from
 decodable words, which narrows the problem without eliminating it.
+
+**Homophones are indistinguishable, by nature.** A child who reads "son" for
+"sun" has pronounced the word correctly, so no system that listens can call
+it an error. Catching that requires comprehension or spelling, not decoding.
 
 **Judges are unvalidated.** S3 and S4 have not been measured against human
 ratings, which is why their output routes to a review queue rather than
