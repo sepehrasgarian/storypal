@@ -1,27 +1,27 @@
 # StoryPal
 
-A voice reading companion for children — built as a working slice of an agentic
-platform: a live voice loop plus three learning timescales that let the system
-adapt to the child immediately and improve itself over time.
+A voice reading companion for children, built as a working slice of an agentic
+platform: a live voice loop plus the learning timescales that let the system
+adapt to a child immediately and improve itself over time.
 
-**The design question this project answers:** when an agent's own perception is
-unreliable, how should the system behave — and how does it learn from that?
+**The design question this project answers: when an agent's own perception is
+unreliable, how should the system behave, and how does it learn from that?**
 
 ## Why reading practice
 
-Most conversational agents can't be scored objectively: there is no ground
-truth for "was that a good reply?". Reading practice is different — the target
-sentence is on screen, so what the child *should* have said is known exactly.
-That makes the core assessment deterministic (word-level alignment) rather
-than a matter of judgment.
+Most conversational agents cannot be scored objectively, because there is no
+ground truth for "was that a good reply?". Reading practice is different. The
+target sentence is on the screen, so what the child should have said is known
+exactly. That makes the core assessment deterministic, a word by word
+alignment rather than a matter of judgment.
 
-It also sits on a known risk: children's speech is one of the hardest inputs
-for speech recognition, and weak recognizers don't merely mishear — they
-fabricate words that were never spoken, or silently autocorrect
-mispronunciations into the right word. In a reading tutor both failures are
-directly harmful: the system corrects a child who was right, or praises a
-mistake. This architecture treats recognition confidence as a first-class
-signal for exactly that reason.
+It also sits on a known risk. Children's speech is one of the hardest inputs
+for speech recognition, and weak recognisers do not merely mishear. They
+fabricate words that were never spoken, and they silently repair words that
+were spoken badly. In a reading tutor both failures are harmful: the system
+either corrects a child who was right, or praises a mistake. This
+architecture treats recognition confidence as a first class signal for
+exactly that reason.
 
 ## Architecture
 
@@ -33,87 +33,135 @@ BROWSER                      API (FastAPI)                          EXTERNAL
                                   │  telemetry
                                   ▼
                     ┌── SYNC PRE-LOOP (deterministic, free) ──┐
-                    │  assessment.py  normalized fuzzy         │
-                    │                 alignment vs target      │
+                    │  session.py     choose the frame:        │
+                    │                 reading, drill or chat   │
                     │  S1 reading accuracy                     │
-                    │  S2 ASR reliability  ◄── gates S1        │
+                    │  S2 recogniser reliability ◄── gates S1  │
                     └──────────────────┬───────────────────────┘
                                        ▼
-                                  prompt.py   (Tier 1: signals + profile)
+                                  prompt.py   (signals + profile + tactic)
                                        ▼
-                                  agent.py + tools.py ───────►  LLM provider
+                                  agent/loop.py ─────────────►  Gemini 2.5 Flash
                                        ▼
-                                  tts.py  ───────────────────►  Higgs TTS v3
+                                  tts.py  ───────────────────►  Higgs TTS 3
                                        │                        (Boson API)
 🔊 play ◄── JSON reply ────────────────┘
                                        │
-                    ┌── ASYNC POST-LOOP (after reply sent) ────┐
+                    ┌── ASYNC POST-LOOP (after reply is sent) ─┐
                     │  S3 tutor grounding   (LLM judge)        │
                     │  S4 pedagogical fit   (LLM judge)        │
-                    │       │                                  │
-                    │       ▼                                  │
-                    │  triage.py ──► Tier 3 curated data       │
-                    │       └──────► next turn's Tier 1 prompt │
-                    └───────────────────────────────────────────┘
+                    │  triage.py ──► curated data              │
+                    │  observability ──► Langfuse (optional)   │
+                    └──────────────────────────────────────────┘
 ```
 
-The deterministic signals (S1, S2) run synchronously inside the turn; the LLM
-judges (S3, S4) run asynchronously after the reply is sent, so quality
-judgment never sits on the latency path.
+The deterministic signals run inside the turn. The judges run after the reply
+has been sent, so quality control never sits on the latency path.
 
-## The three learning timescales
+## The signals
 
-| Tier | Mechanism | Latency | Cost | Persisted as |
-|------|-----------|---------|------|--------------|
-| 1 | Feedback injected into the prompt | next turn | free | nothing (ephemeral) |
-| 2 | Learner profile loaded into the prompt | next session | free | `data/profile.json` |
-| 3 | Curated failures for offline fine-tuning | days | GPUs | `data/curated/*.jsonl` |
+**S1, reading accuracy.** Word level alignment against the known sentence.
+Deterministic. Reports correct, near miss, substituted and missed words.
 
-**Tier 1** rebuilds the prompt every turn from live signals. When the
-recognizer is judged unreliable, the tutor's instructions flip from "correct
-the child" to "ask them to read it once more" — perception quality is routed
-directly into the agent's behaviour.
+**S2, recogniser reliability.** Decides whether S1 may be trusted at all,
+using two independent kinds of evidence. First, the recogniser's own
+telemetry: average log probability, no speech probability and compression
+ratio, all reported by Whisper. Second, target anchored novelty: content that
+cannot be explained by the sentence on screen. Fabrication is detected by
+contiguity rather than volume, because invented content arrives as a phrase
+("thanks for watching") while a child's self talk arrives as scattered single
+words ("um ... i did it"), and the two carry identical novel word counts.
 
-**Tier 2** is a small learner profile (weak phonemes, missed words, pace,
-difficulty) accumulated across sessions. Turns flagged unreliable by S2 are
-excluded from profile updates, so recognition artifacts never poison memory.
+**S3, tutor grounding.** An LLM judge asking whether the reply claimed
+anything the assessment does not support.
 
-**Tier 3** produces the dataset a training run would consume: each curated
-record stores the full context, the flawed reply, the judge's verdict, and a
-slot for a corrected reply — yielding SFT/DPO-ready pairs. No training is run
-here; the point is the curation judgment.
+**S4, pedagogical fit.** An LLM judge asking whether the reply was kind,
+age appropriate and aimed at the right target.
 
-## Signals
+S2 is the safeguard, and it gates four separate things: what the tutor says,
+what the learner profile remembers, whether the child advances, and which
+data reaches training.
 
-| ID | Signal | Method | Detects |
-|----|--------|--------|---------|
-| S1 | Reading accuracy | word alignment vs target | missed / substituted / added words |
-| S2 | ASR reliability | ASR telemetry + target-anchored novelty | recognizer fabricating content |
-| S3 | Tutor grounding | LLM judge | tutor claims the assessment doesn't support |
-| S4 | Pedagogical fit | LLM judge vs rubric | corrections that are wrong, harsh, or off-target |
+## How the system learns
 
-S2 is the safeguard: it gates what the tutor says now (Tier 1), what the
-system remembers later (Tier 2), and what data reaches training (Tier 3).
+Four loops at four speeds. Only the slowest involves training.
 
-## Voice output
+**Every turn, free.** Live feedback is compiled into the prompt, which is
+rebuilt from scratch each turn rather than accumulated as chat history. That
+keeps behaviour reproducible from state, which is what makes the transparency
+endpoint and the evaluation harness possible.
 
-Delivery is chosen by the signals rather than fixed, using Higgs TTS v3's
-expressive tags: warm praise after a strong reading, an encouraging tone for
-gentle corrections, slowed prosody when modelling a difficult word.
+**Every session, free.** A small learner profile records weak sounds, hard
+words and the current level. Turns that S2 rejected never write to it, so
+recognition artifacts cannot poison a child's record. Sounds are counted only
+where spelling reliably predicts pronunciation, so a missed word may be
+recorded without blaming any sound.
+
+**Every few turns, free.** Each teaching tactic keeps a success scoreboard per
+child, so retrieval prefers the method that has actually worked for them. The
+tactics themselves come from established reading instruction rather than
+invention: Orton Gillingham articulatory cues, Elkonin sound boxes adapted to
+finger taps for an audio only channel, minimal pairs aimed at the
+substitutions children actually make, onset rime word families, and gradual
+release. Every tactic records the method it came from.
+
+**Every few weeks, on GPUs.** Turns where the tutor itself replied badly are
+curated with full context, the judges' verdicts and a slot for a corrected
+reply, producing a dataset ready for supervised or preference fine tuning. No
+training is run here. The judgment about what is worth learning from is the
+part this project implements.
+
+## Evaluation
+
+Four layers, because each catches failures the others cannot see.
+
+**Unit tests.** 216 tests covering every module, with no network access.
+
+**Case evaluation.** 28 labelled cases replayed through the real pipeline,
+reporting alignment correctness and a confusion matrix for hallucination
+detection. Currently precision 1.00 and recall 1.00.
+
+**Adversarial cases.** Twelve of those cases were written to break the system
+rather than to pass it, and two of them did. A transcript consisting of the
+sentence plus an invented tail scored a perfect read and advanced the child,
+because the fabrication was a minority of the transcript. A failed drill
+attempt fell through to whole sentence grading, blaming the child for words
+nobody asked them to say. Both are fixed and pinned as regression tests.
+
+**Session simulation.** Five simulated children, each run for 24 turns: a
+confident reader, a child who genuinely cannot manage a sound yet, a tired
+child who reads correctly but is misheard, a chatterbox, and a frustrated
+child who refuses and goes quiet. Each utterance carries both what the child
+voiced and what the recogniser reported, so the simulation can measure the
+failure that matters most, which is correcting a child who read perfectly.
+
+**Audio to audio evaluation.** A second agent plays the child and speaks
+through Higgs TTS, and the real Whisper listens. This is the only layer that
+exercises the actual recogniser rather than a fabricated transcript. Results
+across 21 spoken turns: zero false corrections, and the recogniser reproduced
+what was voiced in 17 of 21 cases.
+
+That evaluation also produced hard evidence for a limitation this project had
+only been able to assert. In two of three cases where the child agent
+deliberately mispronounced a word, Whisper silently repaired it. A child who
+voiced "the son is hot" was transcribed as "The sun is hot." and scored one
+hundred percent. S2 cannot detect this, because nothing about the transcript
+looks wrong. Fabrication is visible; repair is not.
 
 ## Project layout
 
 ```
 src/storypal/
-  config.py     every tunable number in one place
-  core/         assessment, signals, triage, trajectory   (deterministic heart)
-  learning/     profile, kb, prompt, curated              (the three tiers)
-  agent/        llm, loop, tools, judges                  (the agentic layer)
-  speech/       asr, tts                                  (ears and voice)
+  config.py     thresholds, story catalogue, phoneme rules
+  core/         assessment, signals, triage, trajectory
+  learning/     profile, knowledge bases, prompt, curated data
+  agent/        provider interface, turn loop, tools, judges
+  speech/       recognition and synthesis
+  session.py    turn framing and progression decisions
   api/          FastAPI wiring
-web/            single page, no build step
-eval/           labeled cases + metrics report
-tests/          one test file per module
+web/            single page interface, no build step
+eval/           case suites, personas, session and audio evaluation
+tests/          one test module per source module
 ```
 
 ## Setup
@@ -121,34 +169,63 @@ tests/          one test file per module
 ```bash
 python3.12 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
-brew install ffmpeg          # Whisper needs it to decode browser audio
-cp .env.example .env         # then fill in your API keys
-./run.sh                     # starts uvicorn on http://127.0.0.1:8000
+brew install ffmpeg
+cp .env.example .env      # then add your API keys
+./run.sh                  # serves on http://127.0.0.1:8000
 ```
 
-Note: `run.sh` sets `PYTHONPATH=src` instead of relying on the venv's
-`.pth` files — iCloud sync in `~/Documents` flags those files as
-hidden, and Python ≥ 3.12.10 skips hidden `.pth` files.
+`run.sh` sets `PYTHONPATH=src` rather than relying on the virtual
+environment's path files, because iCloud sync marks those files hidden and
+Python 3.12.10 and later skip hidden path files.
 
-Run tests and the eval report:
+Run the evaluation suites:
 
 ```bash
-pytest
-python -m eval.run_eval
+pytest                                   # unit tests and case suites
+PYTHONPATH=src python -m eval.run_eval   # metrics report
+PYTHONPATH=src python -m eval.simulate   # session simulation
+PYTHONPATH=src python -m eval.audio_loop # audio to audio, needs API keys
 ```
 
-## Deliberate limitations
+## Design decisions
 
-- No training is run; Tier 3 produces the dataset only.
-- S2 catches fabrication but not autocorrection (a strong-LM recognizer
-  "fixing" a child's mispronunciation into the right word). The real fix is a
-  phoneme-level acoustic model.
-- Turn-taking is push-to-talk rather than streaming; barge-in needs a live
-  speech-to-speech runtime.
-- Judge-based signals (S3, S4) are unvalidated against human ratings.
-- The learner profile is a single-child JSON file, not a multi-tenant store.
+**No orchestration framework.** Control flow is the most safety critical part
+of this system, so every branch of it is explicit, testable code. A framework
+would be justified by multi agent handoffs, cyclic graphs or durable
+execution, none of which this system has.
 
-## Status
+**No vector store.** Retrieval over a corpus this small is tag lookup. A
+vector store would add operational weight and hide a decision that fits in
+one function.
 
-Early development — deterministic core (assessment, signals, triage) first,
-then the agent loop, then voice in/out.
+**No chat history.** Turn state is distilled into structured facts and the
+prompt is rebuilt from them. Behaviour is therefore reproducible from state,
+the prompt stays a constant size across a long session, and memory writes can
+be gated on recognition quality, which is not possible when raw history simply
+accumulates.
+
+**A deliberately small job for the model.** The language model handles the one
+thing it is genuinely best at, which is phrasing warmth for a child. Trust,
+memory, progression and routing remain in deterministic code.
+
+## Limitations
+
+**Autocorrection is undetectable.** Measured, not assumed: see the audio
+evaluation above. A phoneme level acoustic model is the real fix.
+
+**Caution has a cost.** The simulated tired child is perfectly protected and
+completely stuck, advancing zero sentences across 24 turns. The remedy is a
+better acoustic model rather than a looser threshold.
+
+**Phonemes are inferred from spelling.** Sounds are counted only at positions
+where spelling predicts pronunciation, and the story catalogue is built from
+decodable words, which narrows the problem without eliminating it.
+
+**Judges are unvalidated.** S3 and S4 have not been measured against human
+ratings, which is why their output routes to a review queue rather than
+directly to action.
+
+**Turn taking is push to talk.** Barge in and interruption recovery need a
+live speech to speech runtime.
+
+**The learner profile is a single file.** Multi tenancy is out of scope.
