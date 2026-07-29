@@ -21,7 +21,9 @@ def from_env(client: httpx.Client | None = None) -> "LangfuseExporter | None":
     secret = os.getenv("LANGFUSE_SECRET_KEY")
     if not public or not secret:
         return None
-    host = os.getenv("LANGFUSE_HOST", DEFAULT_HOST)
+    # Langfuse's own setup snippet emits LANGFUSE_BASE_URL; their SDKs
+    # read LANGFUSE_HOST. Accept either so a pasted snippet just works.
+    host = os.getenv("LANGFUSE_HOST") or os.getenv("LANGFUSE_BASE_URL") or DEFAULT_HOST
     return LangfuseExporter(public, secret, host, client=client)
 
 
