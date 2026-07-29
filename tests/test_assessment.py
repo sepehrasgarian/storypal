@@ -2,7 +2,7 @@
 
 import pytest
 
-from api.assessment import WordStatus, assess, edit_distance, normalize
+from storypal.core.assessment import WordStatus, assess, edit_distance, normalize
 
 TARGET = "The bird flew through the trees."
 

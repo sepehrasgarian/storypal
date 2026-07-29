@@ -17,19 +17,19 @@ from fastapi import BackgroundTasks, FastAPI, File, Form, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from api import profile as profile_mod
-from api.agent import run_turn
-from api.assessment import assess
-from api.config import DATA_DIR, PROFILE_PATH, STORIES, TRAJECTORY_PATH
-from api.curated import CuratedStore
-from api.judges import s3_grounding, s4_pedagogy
-from api.kb import TacticStats
-from api.prompt import build_prompt
-from api.signals import s1_reading_accuracy, s2_asr_reliability
-from api.tools import ToolContext
-from api.trajectory import TrajectoryLog, TurnRecord, reward_from_signals
-from api.triage import route_turn
-from api.tts import choose_style
+from storypal.learning import profile as profile_mod
+from storypal.agent.loop import run_turn
+from storypal.core.assessment import assess
+from storypal.config import DATA_DIR, PROFILE_PATH, STORIES, TRAJECTORY_PATH
+from storypal.learning.curated import CuratedStore
+from storypal.agent.judges import s3_grounding, s4_pedagogy
+from storypal.learning.kb import TacticStats
+from storypal.learning.prompt import build_prompt
+from storypal.core.signals import s1_reading_accuracy, s2_asr_reliability
+from storypal.agent.tools import ToolContext
+from storypal.core.trajectory import TrajectoryLog, TurnRecord, reward_from_signals
+from storypal.core.triage import route_turn
+from storypal.speech.tts import choose_style
 
 load_dotenv()
 
@@ -45,9 +45,9 @@ class Services:
 
 
 def default_services() -> Services:
-    from api.asr import WhisperASR
-    from api.llm import GeminiLLM
-    from api.tts import HiggsTTS
+    from storypal.speech.asr import WhisperASR
+    from storypal.agent.llm import GeminiLLM
+    from storypal.speech.tts import HiggsTTS
 
     llm = GeminiLLM()
     return Services(
@@ -77,7 +77,8 @@ def create_app(services: Services | None = None) -> FastAPI:
             state.services = default_services()
         return state.services
 
-    web_dir = Path(__file__).parent.parent / "web"
+    # src/storypal/api/main.py -> repo root is three levels up from storypal/
+    web_dir = Path(__file__).parents[3] / "web"
     app.mount("/web", StaticFiles(directory=web_dir), name="web")
 
     @app.get("/")

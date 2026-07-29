@@ -1,10 +1,10 @@
 """Tests for the Tier 2 learner profile."""
 
-from api.assessment import assess
-from api.profile import (
+from storypal.core.assessment import assess
+from storypal.learning.profile import (
     Profile, load, phonemes_in_word, render, save, update_from_turn, weakest_phoneme,
 )
-from api.signals import Signal
+from storypal.core.signals import Signal
 
 TARGET = "The bird flew through the trees."
 RELIABLE = Signal("S2", score=1.0, reliable=True)

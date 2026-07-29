@@ -14,8 +14,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Callable, Mapping
 
-from api.config import JUDGE_FAIL_THRESHOLD
-from api.signals import Signal
+from storypal.config import JUDGE_FAIL_THRESHOLD
+from storypal.core.signals import Signal
 
 
 class Route(Enum):

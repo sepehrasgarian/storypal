@@ -1,8 +1,8 @@
 """Tests for the four tools and their guard rails."""
 
-from api.kb import TacticStats
-from api.profile import Profile
-from api.tools import ToolContext, drill_sound, flag_for_review, next_sentence, set_difficulty
+from storypal.learning.kb import TacticStats
+from storypal.learning.profile import Profile
+from storypal.agent.tools import ToolContext, drill_sound, flag_for_review, next_sentence, set_difficulty
 
 
 def make_ctx(tmp_path, reliable=True, level=2):

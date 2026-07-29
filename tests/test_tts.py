@@ -6,7 +6,7 @@ Network is faked with httpx.MockTransport: zero API cost.
 import httpx
 import pytest
 
-from api.tts import STYLE_TAGS, HiggsTTS, choose_style
+from storypal.speech.tts import STYLE_TAGS, HiggsTTS, choose_style
 
 
 class TestChooseStyle:

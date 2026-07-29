@@ -10,8 +10,8 @@ when the recognizer is unreliable, the assessment must not be acted on.
 
 from dataclasses import dataclass, field
 
-from api.assessment import Assessment, WordStatus, is_near_miss, normalize
-from api.config import (
+from storypal.core.assessment import Assessment, WordStatus, is_near_miss, normalize
+from storypal.config import (
     ASR_AVG_LOGPROB_UNRELIABLE,
     ASR_COMPRESSION_RATIO_UNRELIABLE,
     ASR_NO_SPEECH_UNRELIABLE,

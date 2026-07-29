@@ -8,8 +8,8 @@ offline curation step would fill to form SFT/DPO pairs.
 import json
 from pathlib import Path
 
-from api.config import CURATED_DIR
-from api.triage import Route
+from storypal.config import CURATED_DIR
+from storypal.core.triage import Route
 
 
 class CuratedStore:

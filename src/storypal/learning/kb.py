@@ -13,7 +13,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
-from api.config import STORIES, Story
+from storypal.config import STORIES, Story
 
 
 @dataclass(frozen=True)

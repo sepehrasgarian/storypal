@@ -10,7 +10,7 @@ import os
 from dataclasses import dataclass, field
 from typing import Protocol
 
-from api.config import LLM_MODEL
+from storypal.config import LLM_MODEL
 
 
 @dataclass(frozen=True)

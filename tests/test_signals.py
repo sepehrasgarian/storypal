@@ -7,8 +7,8 @@ The two headline scenarios:
 
 import pytest
 
-from api.assessment import assess
-from api.signals import AsrTelemetry, s1_reading_accuracy, s2_asr_reliability
+from storypal.core.assessment import assess
+from storypal.core.signals import AsrTelemetry, s1_reading_accuracy, s2_asr_reliability
 
 TARGET = "The bird flew through the trees."
 

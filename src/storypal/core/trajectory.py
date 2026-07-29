@@ -9,7 +9,7 @@ import json
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
-from api.signals import Signal
+from storypal.core.signals import Signal
 
 
 @dataclass(frozen=True)

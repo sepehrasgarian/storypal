@@ -4,11 +4,11 @@ Zero network, zero cost: the fake model replays queued replies and the
 loop's behaviour around them is what we assert.
 """
 
-from api.agent import MAX_TOOL_CALLS, run_turn
-from api.kb import TacticStats
-from api.llm import FakeLLM, LLMReply, ToolCall
-from api.profile import Profile
-from api.tools import ToolContext
+from storypal.agent.loop import MAX_TOOL_CALLS, run_turn
+from storypal.learning.kb import TacticStats
+from storypal.agent.llm import FakeLLM, LLMReply, ToolCall
+from storypal.learning.profile import Profile
+from storypal.agent.tools import ToolContext
 
 SYSTEM = "You are StoryPal."
 CHILD_READ = 'The child read: "the bird flew the trees"'

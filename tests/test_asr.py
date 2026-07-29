@@ -2,7 +2,7 @@
 
 from collections import namedtuple
 
-from api.asr import telemetry_from_segments
+from storypal.speech.asr import telemetry_from_segments
 
 Segment = namedtuple("Segment", "avg_logprob no_speech_prob compression_ratio text")
 

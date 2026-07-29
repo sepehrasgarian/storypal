@@ -7,10 +7,10 @@ prompt, agent, TTS, trajectory, judges, triage — with zero network.
 import pytest
 from fastapi.testclient import TestClient
 
-from api.asr import TranscriptionResult
-from api.llm import FakeLLM, LLMReply
-from api.main import Services, create_app
-from api.signals import AsrTelemetry
+from storypal.speech.asr import TranscriptionResult
+from storypal.agent.llm import FakeLLM, LLMReply
+from storypal.api.main import Services, create_app
+from storypal.core.signals import AsrTelemetry
 
 TARGET = "The cat sat on the mat."
 
@@ -39,9 +39,9 @@ class FakeTTS:
 
 @pytest.fixture
 def env(tmp_path, monkeypatch):
-    monkeypatch.setattr("api.main.PROFILE_PATH", str(tmp_path / "profile.json"))
-    monkeypatch.setattr("api.main.TRAJECTORY_PATH", str(tmp_path / "traj.jsonl"))
-    monkeypatch.setattr("api.main.DATA_DIR", str(tmp_path))
+    monkeypatch.setattr("storypal.api.main.PROFILE_PATH", str(tmp_path / "profile.json"))
+    monkeypatch.setattr("storypal.api.main.TRAJECTORY_PATH", str(tmp_path / "traj.jsonl"))
+    monkeypatch.setattr("storypal.api.main.DATA_DIR", str(tmp_path))
     asr = FakeASR()
     tts = FakeTTS(tmp_path)
     tutor_llm = FakeLLM([LLMReply(text="Wonderful reading! You got every word.")] * 20)

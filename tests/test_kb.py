@@ -1,6 +1,6 @@
 """Tests for the content and strategy knowledge bases."""
 
-from api.kb import TacticStats, best_tactic, next_sentence
+from storypal.learning.kb import TacticStats, best_tactic, next_sentence
 
 
 class TestContentKB:
@@ -19,7 +19,7 @@ class TestContentKB:
         assert next_sentence(level=99) is not None
 
     def test_everything_excluded_returns_none(self):
-        from api.config import STORIES
+        from storypal.config import STORIES
         assert next_sentence(level=1, exclude={s.text for s in STORIES}) is None
 
 
@@ -56,5 +56,5 @@ class TestStrategyKB:
 
 
 def _th_tactics():
-    from api.kb import TACTICS
+    from storypal.learning.kb import TACTICS
     return [t for t in TACTICS if t.phoneme == "th"]

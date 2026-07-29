@@ -101,20 +101,36 @@ Delivery is chosen by the signals rather than fixed, using Higgs TTS v3's
 expressive tags: warm praise after a strong reading, an encouraging tone for
 gentle corrections, slowed prosody when modelling a difficult word.
 
+## Project layout
+
+```
+src/storypal/
+  config.py     every tunable number in one place
+  core/         assessment, signals, triage, trajectory   (deterministic heart)
+  learning/     profile, kb, prompt, curated              (the three tiers)
+  agent/        llm, loop, tools, judges                  (the agentic layer)
+  speech/       asr, tts                                  (ears and voice)
+  api/          FastAPI wiring
+web/            single page, no build step
+eval/           labeled cases + metrics report
+tests/          one test file per module
+```
+
 ## Setup
 
 ```bash
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+python3.12 -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"
 brew install ffmpeg          # Whisper needs it to decode browser audio
 cp .env.example .env         # then fill in your API keys
-uvicorn api.main:app --reload
+uvicorn storypal.api.main:app --reload
 ```
 
-Run tests:
+Run tests and the eval report:
 
 ```bash
 pytest
+python -m eval.run_eval
 ```
 
 ## Deliberate limitations

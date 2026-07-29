@@ -10,10 +10,10 @@ recognizer is unreliable, the instructions flip from "correct the
 child" to "do not correct the child".
 """
 
-from api.assessment import Assessment, WordStatus
-from api.kb import Tactic
-from api.profile import Profile, render as render_profile
-from api.signals import Signal
+from storypal.core.assessment import Assessment, WordStatus
+from storypal.learning.kb import Tactic
+from storypal.learning.profile import Profile, render as render_profile
+from storypal.core.signals import Signal
 
 PERSONA = (
     "You are StoryPal, a warm, patient reading tutor for a young child. "

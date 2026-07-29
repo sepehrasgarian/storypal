@@ -1,7 +1,7 @@
 """Tests for the triage routing table: every rule, plus precedence."""
 
-from api.signals import Signal
-from api.triage import Route, route_turn
+from storypal.core.signals import Signal
+from storypal.core.triage import Route, route_turn
 
 
 def reliable(signal_id, score=1.0):

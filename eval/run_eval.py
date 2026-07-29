@@ -11,8 +11,8 @@ import json
 import sys
 from pathlib import Path
 
-from api.assessment import WordStatus, assess
-from api.signals import AsrTelemetry, s1_reading_accuracy, s2_asr_reliability
+from storypal.core.assessment import WordStatus, assess
+from storypal.core.signals import AsrTelemetry, s1_reading_accuracy, s2_asr_reliability
 
 PROBLEM_STATUSES = (WordStatus.MISSED, WordStatus.NEAR_MISS, WordStatus.SUBSTITUTED)
 

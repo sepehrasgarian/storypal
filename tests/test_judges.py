@@ -1,7 +1,7 @@
 """Tests for the S3/S4 judges and their defensive parsing."""
 
-from api.judges import s3_grounding, s4_pedagogy
-from api.llm import FakeLLM, LLMReply
+from storypal.agent.judges import s3_grounding, s4_pedagogy
+from storypal.agent.llm import FakeLLM, LLMReply
 
 
 def judge_reply(text):

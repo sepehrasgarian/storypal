@@ -9,7 +9,7 @@ import re
 from dataclasses import dataclass
 from enum import Enum
 
-from api.config import (
+from storypal.config import (
     NEAR_MISS_MAX_EDIT_DISTANCE,
     SHORT_WORD_LEN,
     SHORT_WORD_MAX_EDIT_DISTANCE,

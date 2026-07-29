@@ -8,8 +8,8 @@ scorers, so triage treats all four uniformly.
 import json
 import re
 
-from api.llm import LLM, Message
-from api.signals import Signal
+from storypal.agent.llm import LLM, Message
+from storypal.core.signals import Signal
 
 _S3_RUBRIC = """You are auditing a children's reading tutor.
 Assessment of what the child actually read:

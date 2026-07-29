@@ -10,8 +10,8 @@ import json
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
-from api.assessment import Assessment, WordStatus
-from api.signals import Signal
+from storypal.core.assessment import Assessment, WordStatus
+from storypal.core.signals import Signal
 
 # Sounds we track, longest first so 'th' wins over 't' when scanning a word.
 TRACKED_PHONEMES = ("th", "ch", "sh", "r", "s", "t", "d")

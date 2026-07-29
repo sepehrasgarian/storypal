@@ -12,7 +12,7 @@ from pathlib import Path
 
 import httpx
 
-from api.config import BOSON_TTS_URL, DATA_DIR, HIGGS_TTS_MODEL
+from storypal.config import BOSON_TTS_URL, DATA_DIR, HIGGS_TTS_MODEL
 
 # Style -> expressive tag prepended to the text. Empty string = plain.
 # Kept in one place so tags can be tuned (or disabled) without code changes.

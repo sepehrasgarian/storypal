@@ -11,8 +11,8 @@ from pathlib import Path
 
 import httpx
 
-from api.config import BOSON_TTS_URL, WHISPER_MODEL
-from api.signals import AsrTelemetry
+from storypal.config import BOSON_TTS_URL, WHISPER_MODEL
+from storypal.core.signals import AsrTelemetry
 
 
 @dataclass(frozen=True)

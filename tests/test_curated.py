@@ -1,7 +1,7 @@
 """Tests for the Tier 3 curated data store."""
 
-from api.curated import CuratedStore
-from api.triage import Route
+from storypal.learning.curated import CuratedStore
+from storypal.core.triage import Route
 
 
 class TestCuratedStore:

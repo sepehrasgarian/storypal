@@ -4,11 +4,11 @@ The key property: the same inputs always produce the same prompt, and
 the reliable/unreliable versions differ exactly as designed.
 """
 
-from api.assessment import assess
-from api.kb import TacticStats, best_tactic
-from api.profile import Profile
-from api.prompt import build_prompt
-from api.signals import AsrTelemetry, s1_reading_accuracy, s2_asr_reliability
+from storypal.core.assessment import assess
+from storypal.learning.kb import TacticStats, best_tactic
+from storypal.learning.profile import Profile
+from storypal.learning.prompt import build_prompt
+from storypal.core.signals import AsrTelemetry, s1_reading_accuracy, s2_asr_reliability
 
 TARGET = "The bird flew through the trees."
 CONFIDENT = AsrTelemetry(avg_logprob=-0.2, no_speech_prob=0.05, compression_ratio=1.3)

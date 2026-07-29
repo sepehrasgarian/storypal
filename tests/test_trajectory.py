@@ -1,7 +1,7 @@
 """Tests for the trajectory flight recorder."""
 
-from api.signals import Signal
-from api.trajectory import TrajectoryLog, TurnRecord, reward_from_signals
+from storypal.core.signals import Signal
+from storypal.core.trajectory import TrajectoryLog, TurnRecord, reward_from_signals
 
 
 def make_record(session="s1", turn=0, composite=1.0):

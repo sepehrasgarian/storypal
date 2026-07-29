@@ -8,10 +8,10 @@ based on a transcript we do not trust.
 
 from dataclasses import dataclass, field
 
-from api import kb
-from api.config import STORIES
-from api.kb import TacticStats
-from api.profile import Profile
+from storypal.learning import kb
+from storypal.config import STORIES
+from storypal.learning.kb import TacticStats
+from storypal.learning.profile import Profile
 
 VALID_PHONEMES = sorted({t.phoneme for t in kb.TACTICS})
 MIN_LEVEL, MAX_LEVEL = 1, max(s.level for s in STORIES)
