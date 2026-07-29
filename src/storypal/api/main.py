@@ -30,6 +30,7 @@ from storypal.agent.tools import ToolContext
 from storypal.core.trajectory import TrajectoryLog, TurnRecord, reward_from_signals
 from storypal.core.triage import route_turn
 from storypal.speech.tts import choose_style
+from storypal import observability
 
 load_dotenv()
 
@@ -72,6 +73,7 @@ def create_app(services: Services | None = None) -> FastAPI:
     state.seen = set()
     state.last_prompt = ""
     state.last_judgment = {}
+    state.exporter = observability.from_env()  # None unless Langfuse keys set
 
     def services_now() -> Services:
         if state.services is None:
@@ -178,7 +180,7 @@ def create_app(services: Services | None = None) -> FastAPI:
             route=route_turn(signals).route.value,
         )
         state.trajectory.append(record)
-        background.add_task(_post_loop, state, svc, s1, s2, assessment, result.reply, record)
+        background.add_task(_post_loop, state, svc, s1, s2, assessment, result.reply, record, timings)
 
         return {
             "transcript": asr_result.transcript,
@@ -222,13 +224,20 @@ def create_app(services: Services | None = None) -> FastAPI:
     return app
 
 
-def _post_loop(state, svc, s1, s2, assessment, reply, record: TurnRecord) -> None:
-    """S3/S4 judges + triage. Runs after the response is sent."""
+def _post_loop(state, svc, s1, s2, assessment, reply, record: TurnRecord, timings: dict) -> None:
+    """S3/S4 judges + triage + observability. Runs after the response is sent."""
     summary = "; ".join(s1.reasons) + f" (accuracy {s1.score:.0%}; ASR {'ok' if s2.reliable else 'UNRELIABLE'})"
     s3 = s3_grounding(summary, reply, svc.judge_llm)
     s4 = s4_pedagogy(summary, reply, svc.judge_llm)
     signals = {"S1": s1, "S2": s2, "S3": s3, "S4": s4}
     decision = route_turn(signals)
+    if state.exporter is not None:
+        state.exporter.export_turn(
+            session_id=record.session_id, turn=record.turn, timestamp=record.timestamp,
+            target=record.state["target"], transcript=record.state["transcript"],
+            reply=reply, prompt=state.last_prompt, signals=signals,
+            timings_ms=timings, route=decision.route.value,
+        )
     state.last_judgment = {
         "S3": {"score": s3.score, "reason": s3.reasons[0]},
         "S4": {"score": s4.score, "reason": s4.reasons[0]},
