@@ -99,11 +99,11 @@ def create_app(services: Services | None = None) -> FastAPI:
         svc = services_now()
         if state.profile.total_turns == 0:
             text = ("Hi there, I'm StoryPal! I'm so happy to read with you today. "
-                    "When you're ready, hold the big orange button and read the "
-                    "sentence out loud with me!")
+                    "When you're ready, tap the big orange button, read the "
+                    "sentence out loud with me, and tap again when you're done!")
         else:
             text = ("Welcome back, my friend! I missed reading with you. "
-                    "Let's pick up where we left off — hold the button and "
+                    "Let's pick up where we left off — tap the button and "
                     "read the sentence out loud!")
         audio_file = svc.tts.synthesize(text, style="celebrate")
         return {

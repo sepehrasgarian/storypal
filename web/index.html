@@ -138,6 +138,20 @@
     * { animation: none !important; transition: none !important; }
   }
 
+  .meter-wrap {
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    animation: chip-in .25s ease both;
+  }
+  .meter-wrap canvas {
+    background: #FFF1E4; border: 1.5px solid var(--border); border-radius: 999px;
+    box-shadow: var(--clay-shadow-sm);
+  }
+  .meter-label {
+    font-size: 12px; font-weight: 700; color: var(--bad);
+    animation: blink 1.4s ease-in-out infinite;
+  }
+  @keyframes blink { 50% { opacity: .45; } }
+
   .heard { font-size: 13.5px; color: var(--body); min-height: 20px; font-style: italic; }
   .flag {
     display: flex; align-items: center; gap: 8px;
@@ -294,10 +308,14 @@
         <span class="l-miss"><i></i>skipped or different word</span>
       </div>
       <div class="controls">
-        <button id="recBtn" class="rec-btn" aria-label="Hold to record your reading">
+        <button id="recBtn" class="rec-btn" aria-label="Start or stop recording your reading">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
-          <span id="recLabel">Hold to read</span>
+          <span id="recLabel">Tap to read</span>
         </button>
+        <div id="meterWrap" class="meter-wrap" hidden>
+          <canvas id="meter" width="220" height="44" aria-label="Live microphone level"></canvas>
+          <span class="meter-label">I can hear you!</span>
+        </div>
         <button id="nextBtn" class="reset-btn" type="button">
           Next sentence
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
@@ -317,7 +335,7 @@
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="10" r="1.3" fill="#fff"/><circle cx="15" cy="10" r="1.3" fill="#fff"/><path d="M8.5 14.5c1 1.2 2.2 1.8 3.5 1.8s2.5-.6 3.5-1.8"/></svg>
         </div>
         <div>
-          <div class="bubble" id="reply">Press and hold the big orange button, then read the sentence out loud!</div>
+          <div class="bubble" id="reply">Tap the big orange button, read the sentence out loud, then tap again when you're done!</div>
           <div class="tools" id="tools"></div>
         </div>
       </div>

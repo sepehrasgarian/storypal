@@ -18,18 +18,10 @@ async function init() {
   showSentence(target, []);
   refreshPanels();
 
-  const btn = $("recBtn");
-  btn.addEventListener("mousedown", startRecording);
-  btn.addEventListener("mouseup", stopRecording);
-  btn.addEventListener("mouseleave", stopRecording);
-  btn.addEventListener("touchstart", (e) => { e.preventDefault(); startRecording(); });
-  btn.addEventListener("touchend", (e) => { e.preventDefault(); stopRecording(); });
-  // Keyboard: hold Space or Enter to record.
-  btn.addEventListener("keydown", (e) => {
-    if ((e.key === " " || e.key === "Enter") && !e.repeat) { e.preventDefault(); startRecording(); }
-  });
-  btn.addEventListener("keyup", (e) => {
-    if (e.key === " " || e.key === "Enter") { e.preventDefault(); stopRecording(); }
+  // Tap to start, tap again to finish (click also fires for Space/Enter).
+  $("recBtn").addEventListener("click", () => {
+    if (recorder && recorder.state === "recording") stopRecording();
+    else startRecording();
   });
 
   $("startBtn").addEventListener("click", async () => {
@@ -50,11 +42,14 @@ async function init() {
     showSentence(target, []);
     $("transcript").textContent = "";
     $("asrFlag").innerHTML = "";
-    $("reply").textContent = "Here's a new one! Hold the button and read it out loud.";
+    $("reply").textContent = "Here's a new one! Tap the button and read it out loud.";
   });
 }
 
 const getJSON2 = async (url) => (await fetch(url, { method: "POST" })).json();
+
+let audioCtx = null;
+let meterRaf = null;
 
 async function startRecording() {
   if (recorder && recorder.state === "recording") return;
@@ -64,17 +59,61 @@ async function startRecording() {
   recorder.ondataavailable = (e) => chunks.push(e.data);
   recorder.onstop = () => submitTurn(new Blob(chunks, { type: recorder.mimeType }));
   recorder.start();
+  startMeter(stream);
   $("recBtn").classList.add("recording");
-  $("recLabel").textContent = "Reading… let go when done";
+  $("recLabel").textContent = "Tap when you're done";
 }
 
 function stopRecording() {
   if (!recorder || recorder.state !== "recording") return;
   recorder.stop();
   recorder.stream.getTracks().forEach((t) => t.stop());
+  stopMeter();
   $("recBtn").classList.remove("recording");
   $("recBtn").disabled = true;
   $("recLabel").textContent = "Thinking…";
+}
+
+// --- Live level meter: proof the mic is hearing something -------------
+
+function startMeter(stream) {
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  const analyser = audioCtx.createAnalyser();
+  analyser.fftSize = 64;
+  audioCtx.createMediaStreamSource(stream).connect(analyser);
+  const data = new Uint8Array(analyser.frequencyBinCount);
+
+  const canvas = $("meter");
+  const ctx = canvas.getContext("2d");
+  $("meterWrap").hidden = false;
+
+  const BARS = 24;
+  const draw = () => {
+    analyser.getByteFrequencyData(data);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const step = Math.floor(data.length / BARS);
+    const barWidth = canvas.width / BARS;
+    for (let i = 0; i < BARS; i++) {
+      const level = data[i * step] / 255; // 0..1
+      const barHeight = Math.max(4, level * (canvas.height - 8));
+      const x = i * barWidth + barWidth * 0.2;
+      const y = (canvas.height - barHeight) / 2;
+      ctx.fillStyle = level > 0.55 ? "#DC2626" : "#F97316";
+      ctx.beginPath();
+      ctx.roundRect(x, y, barWidth * 0.6, barHeight, 4);
+      ctx.fill();
+    }
+    meterRaf = requestAnimationFrame(draw);
+  };
+  draw();
+}
+
+function stopMeter() {
+  if (meterRaf) cancelAnimationFrame(meterRaf);
+  meterRaf = null;
+  if (audioCtx) audioCtx.close().catch(() => {});
+  audioCtx = null;
+  $("meterWrap").hidden = true;
 }
 
 async function submitTurn(blob) {
@@ -90,7 +129,7 @@ async function submitTurn(blob) {
     $("reply").textContent = "Oops, something went wrong: " + err.message;
   } finally {
     $("recBtn").disabled = false;
-    $("recLabel").textContent = "Hold to read";
+    $("recLabel").textContent = "Tap to read";
   }
 }
 
@@ -188,7 +227,7 @@ async function resetAll() {
   target = (await getJSON("/api/story")).target;
   showSentence(target, []);
   refreshPanels();
-  $("reply").textContent = "Fresh start! Hold the button and read the sentence.";
+  $("reply").textContent = "Fresh start! Tap the button and read the sentence.";
   $("transcript").textContent = "";
   $("asrFlag").innerHTML = "";
 }
