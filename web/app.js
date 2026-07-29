@@ -165,7 +165,13 @@ function showWarmupPrompt() {
 }
 
 function render(turn) {
-  showSentence(target, turn.assessment);
+  // In drill mode the grading covered only the practiced words — show
+  // those chips, then bring the full sentence back a moment later.
+  const graded = turn.graded_target || target;
+  showSentence(graded, turn.assessment);
+  if (graded !== target) {
+    setTimeout(() => showSentence(target, []), 4000);
+  }
   $("transcript").textContent = 'I heard: "' + turn.transcript + '"';
 
   const s2 = turn.signals.S2;

@@ -29,8 +29,14 @@ def build_prompt(
     s2: Signal,
     profile: Profile,
     tactic: Tactic | None = None,
+    drill_words: list[str] | None = None,
 ) -> str:
-    """Assemble the full system prompt for this turn."""
+    """Assemble the full system prompt for this turn.
+
+    When drill_words is set, the child answered a drill by repeating
+    just those words (not the whole sentence) — the instructions must
+    react to the drill, never scold about unread sentence words.
+    """
     sections = [
         PERSONA,
         "",
@@ -40,11 +46,36 @@ def build_prompt(
         f'Target sentence: "{target}"',
         f'Heard: "{assessment.transcript}"',
     ]
-    if s2.reliable:
-        sections += _reliable_instructions(assessment, s1, tactic)
-    else:
+    if not s2.reliable:
         sections += _unreliable_instructions(s2)
+    elif drill_words is not None:
+        sections += _drill_followup_instructions(drill_words, s1, target)
+    else:
+        sections += _reliable_instructions(assessment, s1, tactic)
     return "\n".join(sections)
+
+
+def _drill_followup_instructions(drill_words: list[str], s1: Signal, target: str) -> list[str]:
+    words = ", ".join(f"'{w}'" for w in drill_words)
+    lines = [
+        f"Context: the child was practicing just the word(s) {words} and "
+        "repeated only those, not the whole sentence. That is exactly what "
+        "was asked - do NOT treat the other sentence words as skipped.",
+        f"Drill result: {'; '.join(s1.reasons)} (accuracy {s1.score:.0%})",
+        "ASR: reliable",
+        "",
+    ]
+    if s1.score >= 0.75:
+        lines.append(
+            "Instructions: celebrate that they got the practiced word! Then "
+            f'ask them to read the whole sentence again: "{target}"'
+        )
+    else:
+        lines.append(
+            "Instructions: encourage warmly, model the practiced word slowly "
+            "one more time, and ask them to try just that word again."
+        )
+    return lines
 
 
 def _reliable_instructions(assessment: Assessment, s1: Signal, tactic: Tactic | None) -> list[str]:

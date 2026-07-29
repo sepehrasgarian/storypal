@@ -21,8 +21,10 @@ from storypal.learning import profile as profile_mod
 from storypal.agent.loop import run_turn
 from storypal.core.assessment import assess
 from storypal.config import (
-    AUTO_ADVANCE_ACCURACY, DATA_DIR, PROFILE_PATH, STORIES, TRAJECTORY_PATH,
+    AUTO_ADVANCE_ACCURACY, DATA_DIR, DRILL_FULL_MISMATCH, DRILL_MATCH_ACCURACY,
+    PROFILE_PATH, STORIES, TRAJECTORY_PATH,
 )
+from storypal.core.assessment import WordStatus
 from storypal.learning.curated import CuratedStore
 from storypal.agent.judges import s3_grounding, s4_pedagogy
 from storypal.learning.kb import TacticStats
@@ -73,6 +75,8 @@ def create_app(services: Services | None = None) -> FastAPI:
     state.turn_count = 0
     state.target = STORIES[0].text
     state.seen = set()
+    state.pending_drill = None  # words the child is expected to repeat next
+    state.last_tactic = None  # tactic awaiting its outcome signal
     state.last_prompt = ""
     state.last_judgment = {}
     state.exporter = observability.from_env()  # None unless Langfuse keys set
@@ -205,15 +209,40 @@ def create_app(services: Services | None = None) -> FastAPI:
             os.unlink(audio_path)
 
         assessment = assess(target, asr_result.transcript)
+        graded_target = target
+
+        # Drill follow-up: after a flawed read the child often repeats
+        # just the practiced word. If the recording matches those words
+        # but not the sentence, grade the drill - not the sentence.
+        drill_words = None
+        if state.pending_drill and assessment.accuracy < DRILL_FULL_MISMATCH:
+            mini_target = " ".join(state.pending_drill)
+            mini = assess(mini_target, asr_result.transcript)
+            if mini.accuracy >= DRILL_MATCH_ACCURACY:
+                drill_words = list(state.pending_drill)
+                assessment = mini
+                graded_target = mini_target
+
         s1 = s1_reading_accuracy(assessment)
         s2 = s2_asr_reliability(asr_result.telemetry, assessment)
 
-        # Tier 2: unreliable turns never touch memory.
+        # Tier 2: unreliable turns never touch memory. In drill mode the
+        # mini assessment only covers the practiced words, so sentence
+        # words the child was not asked to say cannot be logged as misses.
         profile_mod.update_from_turn(state.profile, assessment, s2)
         profile_mod.save(state.profile, PROFILE_PATH)
 
+        # Strategy KB: a drill response is the outcome signal for the
+        # tactic that was used to teach it.
+        drill_worked = drill_words is not None and s1.score >= DRILL_MATCH_ACCURACY
+        if drill_words is not None and s2.reliable and state.last_tactic is not None:
+            state.tactic_stats.record_outcome(state.last_tactic, worked=drill_worked)
+            state.last_tactic = None
+
         # Tier 1: instructions rebuilt from this turn's state.
-        system_prompt = build_prompt(target, assessment, s1, s2, state.profile)
+        system_prompt = build_prompt(
+            target, assessment, s1, s2, state.profile, drill_words=drill_words
+        )
         state.last_prompt = system_prompt
 
         ctx = ToolContext(
@@ -231,8 +260,21 @@ def create_app(services: Services | None = None) -> FastAPI:
 
         if ctx.next_story:
             state.target = ctx.next_story  # the agent chose the next sentence
-        elif s2.reliable and s1.score >= AUTO_ADVANCE_ACCURACY:
-            _advance_target()  # accepted read: move on automatically
+        elif drill_words is None and s2.reliable and s1.score >= AUTO_ADVANCE_ACCURACY:
+            _advance_target()  # accepted full read: move on automatically
+
+        # Remember what to expect next turn: a flawed but trusted full
+        # read sets up a drill; a successful drill clears it.
+        if s2.reliable:
+            if drill_words is None and 0 < s1.score < AUTO_ADVANCE_ACCURACY:
+                state.pending_drill = [
+                    v.target_word for v in assessment.verdicts
+                    if v.status in (WordStatus.MISSED, WordStatus.NEAR_MISS, WordStatus.SUBSTITUTED)
+                ] or None
+                state.last_tactic = ctx.tactic_used
+            elif drill_worked or (drill_words is None and s1.score >= AUTO_ADVANCE_ACCURACY):
+                state.pending_drill = None
+                state.last_tactic = None
 
         state.turn_count += 1
         signals = {"S1": s1, "S2": s2}
@@ -252,6 +294,8 @@ def create_app(services: Services | None = None) -> FastAPI:
 
         return {
             "transcript": asr_result.transcript,
+            "graded_target": graded_target,  # differs from target in drill mode
+            "drill_words": drill_words,
             "assessment": [asdict(v) | {"status": v.status.value} for v in assessment.verdicts],
             "signals": {k: asdict(v) for k, v in signals.items()},
             "reply": result.reply,
@@ -287,6 +331,8 @@ def create_app(services: Services | None = None) -> FastAPI:
         state.turn_count = 0
         state.target = STORIES[0].text
         state.seen = set()
+        state.pending_drill = None
+        state.last_tactic = None
         return {"ok": True}
 
     return app

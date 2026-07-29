@@ -57,6 +57,13 @@ FUNCTION_WORDS = frozenset(
 # automatically advances to the next sentence.
 AUTO_ADVANCE_ACCURACY = 0.99
 
+# After a flawed read the child often repeats just the practiced word,
+# not the whole sentence. If the recording matches the drilled words at
+# or above DRILL_MATCH_ACCURACY while matching the full sentence below
+# DRILL_FULL_MISMATCH, grade the drill instead of the sentence.
+DRILL_MATCH_ACCURACY = 0.75
+DRILL_FULL_MISMATCH = 0.5
+
 # --- Judges (S3 grounding, S4 pedagogy) ---------------------------------
 # A judge score below this means the tutor's reply failed that check.
 JUDGE_FAIL_THRESHOLD = 0.5

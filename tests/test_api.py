@@ -151,6 +151,59 @@ class TestAutoAdvance:
         assert body["next_target"] == TARGET
 
 
+class TestDrillFollowup:
+    """After a flawed read, repeating just the practiced word must be
+    graded as a drill - not as skipping the rest of the sentence."""
+
+    def flawed_read(self, env):
+        # Target: "The cat sat on the mat." - child misses "mat".
+        env["asr"].next = TranscriptionResult("the cat sat on the", AsrTelemetry(-0.3, 0.1, 1.2))
+        return post_turn(env).json()
+
+    def test_single_word_answer_is_graded_as_drill(self, env):
+        self.flawed_read(env)
+        env["asr"].next = TranscriptionResult("mat", AsrTelemetry(-0.3, 0.1, 1.2))
+        body = post_turn(env).json()
+        assert body["drill_words"] == ["mat"]
+        assert body["graded_target"] == "mat"
+        assert body["signals"]["S1"]["score"] == 1.0  # they got the word!
+        assert "practicing just the word" in body["prompt"]
+
+    def test_drill_does_not_pollute_the_profile(self, env):
+        self.flawed_read(env)
+        profile_after_miss = env["client"].get("/api/profile").json()
+        env["asr"].next = TranscriptionResult("mat", AsrTelemetry(-0.3, 0.1, 1.2))
+        post_turn(env)
+        profile = env["client"].get("/api/profile").json()
+        # Saying just "mat" must not record cat/sat/on/the as missed.
+        assert profile["missed_words"] == profile_after_miss["missed_words"]
+
+    def test_drill_success_does_not_auto_advance(self, env):
+        self.flawed_read(env)
+        env["asr"].next = TranscriptionResult("mat", AsrTelemetry(-0.3, 0.1, 1.2))
+        body = post_turn(env).json()
+        # The child still owes a full read of the sentence.
+        assert body["next_target"] == TARGET
+
+    def test_full_reread_is_still_graded_as_full_sentence(self, env):
+        self.flawed_read(env)
+        env["asr"].next = TranscriptionResult("the cat sat on the mat", AsrTelemetry(-0.3, 0.1, 1.2))
+        body = post_turn(env).json()
+        assert body["drill_words"] is None
+        assert body["graded_target"] == TARGET
+        assert body["next_target"] != TARGET  # accepted: advances
+
+    def test_drill_outcome_updates_tactic_scoreboard(self, env):
+        from storypal.learning.kb import TACTICS
+        tactic = next(t for t in TACTICS if t.phoneme == "th")
+        self.flawed_read(env)
+        env["app"].state.last_tactic = tactic  # as if the agent had drilled
+        env["asr"].next = TranscriptionResult("mat", AsrTelemetry(-0.3, 0.1, 1.2))
+        post_turn(env)
+        stats = env["app"].state.tactic_stats
+        assert stats.success_rate(tactic) > 0.5  # one success recorded
+
+
 class TestWarmup:
     def post_warmup(self, env):
         return env["client"].post(
