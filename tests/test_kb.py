@@ -3,6 +3,22 @@
 from storypal.learning.kb import TacticStats, best_tactic, next_sentence
 
 
+class TestDerivedPhonemeTags:
+    """Tags come from the words themselves - hand-written ones drifted
+    (they missed the 'th' in "The"), silently starving a th-weak child
+    of th practice."""
+
+    def test_tags_match_the_actual_words(self):
+        from storypal.config import STORIES
+        story = next(s for s in STORIES if s.text == "The cat sat on the mat.")
+        assert "th" in story.phonemes  # from "The"
+
+    def test_weak_sound_is_practised_at_the_childs_own_level(self):
+        story = next_sentence(level=1, focus_phoneme="th")
+        assert story.level == 1
+        assert "th" in story.phonemes
+
+
 class TestContentKB:
     def test_prefers_level_and_focus_phoneme(self):
         story = next_sentence(level=2, focus_phoneme="th")

@@ -5,7 +5,31 @@ changed without touching logic code.
 """
 
 import os
-from dataclasses import dataclass, field
+import re
+from dataclasses import dataclass
+
+# Sounds we track, longest first so 'th' wins over 't' when scanning a
+# word. Lives here because both the learner profile and the story
+# catalogue must agree on what a word exercises.
+TRACKED_PHONEMES = ("th", "ch", "sh", "r", "s", "t", "d")
+
+
+def phonemes_in_word(word: str) -> list[str]:
+    """The tracked sounds a word exercises: 'through' -> ['th', 'r']."""
+    found = []
+    remaining = word.lower()
+    for phoneme in TRACKED_PHONEMES:
+        if phoneme in remaining:
+            found.append(phoneme)
+            remaining = remaining.replace(phoneme, "")
+    return found
+
+
+def phonemes_in_sentence(text: str) -> tuple[str, ...]:
+    sounds: set[str] = set()
+    for word in re.findall(r"[a-z']+", text.lower()):
+        sounds.update(phonemes_in_word(word))
+    return tuple(sorted(sounds))
 
 
 @dataclass(frozen=True)
@@ -14,18 +38,25 @@ class Story:
 
     text: str
     level: int  # 1 = easiest
-    phonemes: tuple[str, ...] = field(default_factory=tuple)  # sounds it exercises
+
+    @property
+    def phonemes(self) -> tuple[str, ...]:
+        """Derived from the words, never hand-tagged: hand-written tags
+        drifted from reality (they missed the 'th' in "The"), so a child
+        weak at a sound could be served sentences that never practise it."""
+        return phonemes_in_sentence(self.text)
 
 
 STORIES: list[Story] = [
-    Story("The cat sat on the mat.", level=1, phonemes=("s", "t")),
-    Story("A big red dog ran fast.", level=1, phonemes=("r", "d")),
-    Story("The sun is hot today.", level=1, phonemes=("s", "t")),
-    Story("The bird flew through the trees.", level=2, phonemes=("th", "r")),
-    Story("Three small ships sailed north.", level=2, phonemes=("th", "s")),
-    Story("She threw the ball over there.", level=2, phonemes=("th", "r")),
-    Story("The children thought about their birthday.", level=3, phonemes=("th", "ch")),
-    Story("Thunder rumbled through the thick clouds.", level=3, phonemes=("th", "r")),
+    Story("The cat sat on the mat.", level=1),
+    Story("A big red dog ran fast.", level=1),
+    Story("The sun is hot today.", level=1),
+    Story("This fish has three fins.", level=1),
+    Story("The bird flew through the trees.", level=2),
+    Story("Three small ships sailed north.", level=2),
+    Story("She threw the ball over there.", level=2),
+    Story("The children thought about their birthday.", level=3),
+    Story("Thunder rumbled through the thick clouds.", level=3),
 ]
 
 # --- Assessment ---------------------------------------------------------

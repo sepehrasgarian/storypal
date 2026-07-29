@@ -10,11 +10,9 @@ import json
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
+from storypal.config import TRACKED_PHONEMES, phonemes_in_word  # noqa: F401 (re-exported)
 from storypal.core.assessment import Assessment, WordStatus
 from storypal.core.signals import Signal
-
-# Sounds we track, longest first so 'th' wins over 't' when scanning a word.
-TRACKED_PHONEMES = ("th", "ch", "sh", "r", "s", "t", "d")
 
 
 @dataclass
@@ -23,17 +21,6 @@ class Profile:
     total_turns: int = 0
     weak_phonemes: dict = field(default_factory=dict)  # phoneme -> miss count
     missed_words: dict = field(default_factory=dict)  # word -> miss count
-
-
-def phonemes_in_word(word: str) -> list[str]:
-    """The tracked sounds a word exercises: 'through' -> ['th', 'r']."""
-    found = []
-    remaining = word
-    for phoneme in TRACKED_PHONEMES:
-        if phoneme in remaining:
-            found.append(phoneme)
-            remaining = remaining.replace(phoneme, "")
-    return found
 
 
 def update_from_turn(profile: Profile, assessment: Assessment, s2: Signal) -> Profile:

@@ -284,6 +284,12 @@
   .start-btn:active { transform: scale(.94); }
   .start-btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
   .welcome-hint { font-size: 12.5px !important; color: var(--ink) !important; opacity: .75; margin-top: 18px !important; margin-bottom: 0 !important; }
+  .pitch {
+    font-size: 13.5px !important; line-height: 1.6; text-align: left;
+    background: #FFF1E4; border: 1px solid var(--border); border-radius: 16px;
+    padding: 14px 16px; margin-bottom: 24px !important; color: var(--body) !important;
+  }
+  .pitch b { display: block; margin-bottom: 5px; color: var(--ink-strong); font-family: "Baloo 2", sans-serif; font-size: 15px; }
 
   footer {
     position: relative; z-index: 1; display: flex; justify-content: center; gap: 10px;
@@ -308,6 +314,14 @@
     <h2>Hi! I'm StoryPal!</h2>
     <p>Let's read stories out loud together. I'll listen, cheer you on,
        and help with the tricky words.</p>
+    <p class="pitch">
+      <b>An AI reading tutor every child can afford.</b>
+      One-to-one tutoring lifts a struggling reader by two grade levels —
+      and costs $60 an hour. StoryPal listens to a child read aloud,
+      scores every word against the page, and adapts the lesson in real
+      time. It also knows when <i>not</i> to trust its own ears, so it
+      never corrects a child who read perfectly.
+    </p>
     <button id="startBtn" class="start-btn">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.14v14l11-7-11-7z"/></svg>
       Let's read!
