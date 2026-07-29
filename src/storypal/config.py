@@ -52,6 +52,11 @@ FUNCTION_WORDS = frozenset(
     "a an the and or but is are was were to of in on at it i".split()
 )
 
+# --- Session flow -------------------------------------------------------
+# A trusted turn at or above this accuracy is "accepted": the session
+# automatically advances to the next sentence.
+AUTO_ADVANCE_ACCURACY = 0.99
+
 # --- Judges (S3 grounding, S4 pedagogy) ---------------------------------
 # A judge score below this means the tutor's reply failed that check.
 JUDGE_FAIL_THRESHOLD = 0.5

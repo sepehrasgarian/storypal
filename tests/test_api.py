@@ -129,6 +129,28 @@ class TestGreeting:
         assert "Welcome back" in body["text"]
 
 
+class TestAutoAdvance:
+    def test_perfect_trusted_read_advances_to_next_sentence(self, env):
+        body = post_turn(env).json()  # FakeASR reads the target perfectly
+        assert body["signals"]["S1"]["score"] == 1.0
+        assert body["next_target"] != TARGET
+
+    def test_flawed_read_stays_on_the_same_sentence(self, env):
+        env["asr"].next = TranscriptionResult("the cat sat on the", AsrTelemetry(-0.3, 0.1, 1.2))
+        body = post_turn(env).json()
+        assert body["next_target"] == TARGET
+
+    def test_unreliable_perfect_looking_read_does_not_advance(self, env):
+        # Even a transcript that matches the target must not advance if
+        # the recognizer itself is untrustworthy.
+        env["asr"].next = TranscriptionResult(
+            "the cat sat on the mat", AsrTelemetry(avg_logprob=-1.8, no_speech_prob=0.1, compression_ratio=1.2)
+        )
+        body = post_turn(env).json()
+        assert body["signals"]["S2"]["reliable"] is False
+        assert body["next_target"] == TARGET
+
+
 class TestWarmup:
     def post_warmup(self, env):
         return env["client"].post(

@@ -20,7 +20,9 @@ from fastapi.staticfiles import StaticFiles
 from storypal.learning import profile as profile_mod
 from storypal.agent.loop import run_turn
 from storypal.core.assessment import assess
-from storypal.config import DATA_DIR, PROFILE_PATH, STORIES, TRAJECTORY_PATH
+from storypal.config import (
+    AUTO_ADVANCE_ACCURACY, DATA_DIR, PROFILE_PATH, STORIES, TRAJECTORY_PATH,
+)
 from storypal.learning.curated import CuratedStore
 from storypal.agent.judges import s3_grounding, s4_pedagogy
 from storypal.learning.kb import TacticStats
@@ -152,11 +154,9 @@ def create_app(services: Services | None = None) -> FastAPI:
             "target": state.target,
         }
 
-    @app.post("/api/next")
-    def next_story():
-        """Manual skip: pick a new sentence for the child's level, biased
-        toward their weakest sound. The agent's next_sentence tool does
-        the same thing when it decides to advance."""
+    def _advance_target() -> str:
+        """Pick a new sentence for the child's level, biased toward
+        their weakest sound, never repeating until the pool runs dry."""
         from storypal.learning import kb
         from storypal.learning.profile import weakest_phoneme
 
@@ -168,7 +168,13 @@ def create_app(services: Services | None = None) -> FastAPI:
             state.seen = {state.target}
             story = kb.next_sentence(state.profile.level, weakest_phoneme(state.profile))
         state.target = story.text
-        return {"target": state.target}
+        return state.target
+
+    @app.post("/api/next")
+    def next_story():
+        """Manual skip. The agent's next_sentence tool and the
+        auto-advance on an accepted read use the same picker."""
+        return {"target": _advance_target()}
 
     @app.post("/api/turn")
     async def turn(background: BackgroundTasks, audio: UploadFile = File(...), target: str = Form(...)):
@@ -224,7 +230,9 @@ def create_app(services: Services | None = None) -> FastAPI:
         audio_file = timed("tts_ms", lambda: svc.tts.synthesize(result.reply, style))
 
         if ctx.next_story:
-            state.target = ctx.next_story
+            state.target = ctx.next_story  # the agent chose the next sentence
+        elif s2.reliable and s1.score >= AUTO_ADVANCE_ACCURACY:
+            _advance_target()  # accepted read: move on automatically
 
         state.turn_count += 1
         signals = {"S1": s1, "S2": s2}
