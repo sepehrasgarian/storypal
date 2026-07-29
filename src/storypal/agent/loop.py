@@ -10,7 +10,7 @@ Guard rails, all tested:
 import json
 from dataclasses import dataclass, field
 
-from storypal.agent.llm import LLM, LLMReply, Message
+from storypal.agent.llm import LLM, Message
 from storypal.agent.tools import HANDLERS, SCHEMAS, ToolContext
 
 MAX_TOOL_CALLS = 2

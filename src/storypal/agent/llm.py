@@ -5,9 +5,8 @@ prompt plus messages (and tool schemas), get back either text or a
 tool call. Tests use FakeLLM; production uses Gemini.
 """
 
-import json
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Protocol
 
 from storypal.config import LLM_MODEL

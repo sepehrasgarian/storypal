@@ -92,7 +92,7 @@ def build_prompt(
     # match nothing in the target are exactly what trips the novelty
     # check, but "the child answered you" is the better explanation.
     if conversational:
-        sections += _conversational_instructions(assessment, target)
+        sections += _conversational_instructions(target)
     elif not s2.reliable:
         # Perception failed: no tools, no teaching, just ask again.
         sections += _unreliable_instructions(s2)
@@ -105,7 +105,7 @@ def build_prompt(
     return "\n".join(sections)
 
 
-def _conversational_instructions(assessment: Assessment, target: str) -> list[str]:
+def _conversational_instructions(target: str) -> list[str]:
     return [
         "Context: the child is talking TO you, not reading - this was "
         "conversation, so there is nothing to grade.",

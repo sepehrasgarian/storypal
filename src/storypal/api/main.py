@@ -280,7 +280,7 @@ def create_app(services: Services | None = None) -> FastAPI:
             route=route_turn(signals, chat_turn=graded.chat_turn).route.value,
         )
         state.trajectory.append(record)
-        background.add_task(_post_loop, state, svc, s1, s2, assessment, result.reply,
+        background.add_task(_post_loop, state, svc, s1, s2, result.reply,
                             record, timings, graded.chat_turn)
 
         return {
@@ -345,7 +345,7 @@ def _tactic_for(assessment, graded, state):
     return None
 
 
-def _post_loop(state, svc, s1, s2, assessment, reply, record: TurnRecord, timings: dict,
+def _post_loop(state, svc, s1, s2, reply, record: TurnRecord, timings: dict,
                chat_turn: bool = False) -> None:
     """S3/S4 judges + triage + observability. Runs after the response is sent."""
     summary = "; ".join(s1.reasons) + f" (accuracy {s1.score:.0%}; ASR {'ok' if s2.reliable else 'UNRELIABLE'})"
