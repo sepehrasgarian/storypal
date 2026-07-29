@@ -75,10 +75,10 @@ class TestGoodTurn:
         assert profile["total_turns"] == 1
         assert len(env["app"].state.trajectory.read_all()) == 1
 
-    def test_prompt_endpoint_shows_last_prompt(self, env):
-        post_turn(env)
-        prompt = env["client"].get("/api/prompt").json()["prompt"]
-        assert TARGET in prompt
+    def test_turn_returns_the_prompt_that_drove_it(self, env):
+        # Transparency ships with the reply rather than behind a second
+        # call, so a caller can always see why the tutor said what it did.
+        assert TARGET in post_turn(env).json()["prompt"]
 
 
 class TestHallucinatedTurn:

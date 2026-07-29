@@ -194,12 +194,13 @@ hello and confirms whether the microphone is working, grading nothing and
 touching no memory. `POST /api/next` skips to another sentence, and
 `POST /api/reset` clears the learner and starts over.
 
-**Inspection** is three read only endpoints that exist for the same reason as
+**Inspection** is two read only endpoints that exist for the same reason as
 the fields above. `GET /api/profile` returns the accumulated learner memory,
-`GET /api/curated` returns the training data piles and the most recent judge
-verdicts, and `GET /api/prompt` returns the exact prompt used on the last
-turn. That last one is the transparency claim made concrete: the adaptation
-can be observed rather than asserted.
+and `GET /api/curated` returns the training data piles and the most recent
+judge verdicts. There is deliberately no endpoint for retrieving the last
+prompt, because the prompt already ships inside every turn response.
+Transparency is a property of the normal path rather than a separate call to
+make when you happen to want it.
 
 Two design decisions are worth naming. The **judges run in a background task**
 rather than inside the request, so `POST /api/turn` returns as soon as the

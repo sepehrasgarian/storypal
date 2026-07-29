@@ -326,10 +326,6 @@ def create_app(services: Services | None = None) -> FastAPI:
     def get_curated():
         return {"piles": state.curated.summary(), "last_judgment": state.last_judgment}
 
-    @app.get("/api/prompt")
-    def get_prompt():
-        return {"prompt": state.last_prompt}
-
     @app.post("/api/reset")
     def reset():
         state.profile = profile_mod.Profile()
