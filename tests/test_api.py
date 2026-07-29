@@ -116,6 +116,19 @@ class TestUndecodableAudio:
         assert "do NOT correct" in body["prompt"]
 
 
+class TestNextSentence:
+    def test_manual_skip_changes_the_target(self, env):
+        first = env["client"].get("/api/story").json()["target"]
+        second = env["client"].post("/api/next").json()["target"]
+        assert second != first
+
+    def test_rotation_never_runs_dry(self, env):
+        # Skipping more times than there are sentences must keep working.
+        from storypal.config import STORIES
+        targets = {env["client"].post("/api/next").json()["target"] for _ in range(len(STORIES) + 3)}
+        assert all(targets)
+
+
 class TestReset:
     def test_reset_clears_session(self, env):
         post_turn(env)

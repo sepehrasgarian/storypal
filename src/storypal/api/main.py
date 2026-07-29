@@ -69,6 +69,7 @@ def create_app(services: Services | None = None) -> FastAPI:
     state.session_id = uuid.uuid4().hex[:8]
     state.turn_count = 0
     state.target = STORIES[0].text
+    state.seen = set()
     state.last_prompt = ""
     state.last_judgment = {}
 
@@ -87,6 +88,24 @@ def create_app(services: Services | None = None) -> FastAPI:
 
     @app.get("/api/story")
     def story():
+        return {"target": state.target}
+
+    @app.post("/api/next")
+    def next_story():
+        """Manual skip: pick a new sentence for the child's level, biased
+        toward their weakest sound. The agent's next_sentence tool does
+        the same thing when it decides to advance."""
+        from storypal.learning import kb
+        from storypal.learning.profile import weakest_phoneme
+
+        state.seen.add(state.target)
+        story = kb.next_sentence(
+            state.profile.level, weakest_phoneme(state.profile), exclude=state.seen
+        )
+        if story is None:  # everything seen: start the rotation over
+            state.seen = {state.target}
+            story = kb.next_sentence(state.profile.level, weakest_phoneme(state.profile))
+        state.target = story.text
         return {"target": state.target}
 
     @app.post("/api/turn")
@@ -197,6 +216,7 @@ def create_app(services: Services | None = None) -> FastAPI:
         state.session_id = uuid.uuid4().hex[:8]
         state.turn_count = 0
         state.target = STORIES[0].text
+        state.seen = set()
         return {"ok": True}
 
     return app

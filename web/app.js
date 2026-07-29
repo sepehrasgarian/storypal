@@ -31,7 +31,18 @@ async function init() {
   btn.addEventListener("keyup", (e) => {
     if (e.key === " " || e.key === "Enter") { e.preventDefault(); stopRecording(); }
   });
+
+  $("nextBtn").addEventListener("click", async () => {
+    const res = await getJSON2("/api/next");
+    target = res.target;
+    showSentence(target, []);
+    $("transcript").textContent = "";
+    $("asrFlag").innerHTML = "";
+    $("reply").textContent = "Here's a new one! Hold the button and read it out loud.";
+  });
 }
+
+const getJSON2 = async (url) => (await fetch(url, { method: "POST" })).json();
 
 async function startRecording() {
   if (recorder && recorder.state === "recording") return;
