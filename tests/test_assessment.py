@@ -99,3 +99,22 @@ class TestEdgeCases:
     def test_digits_in_transcript_match_spelled_target(self):
         result = assess("Three small ships sailed north.", "3 small ships sailed north")
         assert result.accuracy == 1.0
+
+
+class TestHomophones:
+    """A child who reads 'son' for 'sun' produced the correct sound. A
+    tutor that listens has no grounds to mark that wrong, and Whisper
+    may write either spelling."""
+
+    def test_homophone_counts_as_correct(self):
+        result = assess("The sun is hot.", "the son is hot")
+        assert result.accuracy == 1.0
+        assert not result.words_with_status(WordStatus.NEAR_MISS)
+
+    def test_genuinely_different_word_is_still_wrong(self):
+        result = assess("The sun is hot.", "the fun is hot")
+        assert result.accuracy < 1.0
+
+    def test_homophone_does_not_leak_into_unrelated_words(self):
+        result = assess("Three ships sailed to the dock.", "three ships sailed two the dock")
+        assert result.accuracy == 1.0

@@ -35,9 +35,15 @@
    "telemetry": {"avg_logprob": -0.3, "no_speech_prob": 0.5, "compression_ratio": 1.25},
    "expect": {"s2_reliable": true, "accuracy_min": 1.0}},
 
-  {"name": "homophone substitution is heard as a different word",
-   "why": "'son' for 'sun' is a real reading error the recogniser CAN see; it must be graded, not excused.",
+  {"name": "homophone must be accepted as a correct reading",
+   "why": "'son' and 'sun' are pronounced identically, so the child made the right sound and the recogniser may write either spelling. Penalising this would fault a child for a correct reading. The error, if any, is spelling or comprehension, neither of which a listening tutor observes.",
    "target": "The sun is hot.", "transcript": "the son is hot",
+   "telemetry": {"avg_logprob": -0.35, "no_speech_prob": 0.1, "compression_ratio": 1.25},
+   "expect": {"s2_reliable": true, "accuracy_min": 1.0, "problem_words": []}},
+
+  {"name": "a genuinely different word is still an error",
+   "why": "The homophone rule must not become a blanket excuse for near neighbours.",
+   "target": "The sun is hot.", "transcript": "the fun is hot",
    "telemetry": {"avg_logprob": -0.35, "no_speech_prob": 0.1, "compression_ratio": 1.25},
    "expect": {"s2_reliable": true, "accuracy_max": 0.99, "problem_words": ["sun"]}},
 

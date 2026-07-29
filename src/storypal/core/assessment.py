@@ -13,6 +13,7 @@ from storypal.config import (
     NEAR_MISS_MAX_EDIT_DISTANCE,
     SHORT_WORD_LEN,
     SHORT_WORD_MAX_EDIT_DISTANCE,
+    sounds_the_same,
 )
 
 _DIGIT_WORDS = {
@@ -124,7 +125,11 @@ def assess(target: str, transcript: str) -> Assessment:
 
 
 def _classify(op: str, target_word: str | None, heard_word: str | None) -> WordVerdict:
-    if op == "match":
+    if op == "match" or (
+        target_word and heard_word and sounds_the_same(target_word, heard_word)
+    ):
+        # Homophones are read correctly by definition: the child made the
+        # right sound, whichever spelling the recogniser chose to write.
         return WordVerdict(WordStatus.CORRECT, target_word, heard_word)
     if op == "delete":
         return WordVerdict(WordStatus.MISSED, target_word, None)
@@ -139,7 +144,7 @@ def _classify(op: str, target_word: str | None, heard_word: str | None) -> WordV
 def _substitution_cost(target_word: str, heard_word: str) -> float:
     """Cheaper to pair similar words, so 'floo' aligns with 'flew'
     (a near-miss) rather than with an unrelated target word."""
-    if target_word == heard_word:
+    if sounds_the_same(target_word, heard_word):
         return 0.0
     if is_near_miss(target_word, heard_word):
         return 0.5

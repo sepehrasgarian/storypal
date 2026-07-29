@@ -40,6 +40,33 @@ def phonemes_in_sentence(text: str) -> tuple[str, ...]:
     return tuple(sorted(sounds))
 
 
+# Words that sound identical. A child who reads "son" for "sun" has
+# pronounced the word correctly, and a tutor that listens has no
+# grounds to mark it wrong; the error, if any, is in spelling or
+# comprehension, neither of which this system observes. Whisper may
+# transcribe either spelling, so the grader must accept both.
+HOMOPHONES: list[frozenset[str]] = [
+    frozenset({"sun", "son"}),
+    frozenset({"to", "too", "two"}),
+    frozenset({"there", "their", "theyre"}),
+    frozenset({"red", "read"}),
+    frozenset({"by", "buy", "bye"}),
+    frozenset({"be", "bee"}),
+    frozenset({"see", "sea"}),
+    frozenset({"so", "sew"}),
+    frozenset({"here", "hear"}),
+    frozenset({"for", "four"}),
+    frozenset({"its", "it's"}),
+    frozenset({"threw", "through"}),
+]
+
+
+def sounds_the_same(a: str, b: str) -> bool:
+    """Whether two spellings are pronounced identically."""
+    a, b = a.lower(), b.lower()
+    return a == b or any({a, b} <= group for group in HOMOPHONES)
+
+
 @dataclass(frozen=True)
 class Story:
     """One target sentence a child can be asked to read."""

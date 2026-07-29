@@ -282,7 +282,18 @@ function render(turn) {
     target = turn.next_target;
     setTimeout(() => showSentence(target, []), 4000);
   }
-  setTimeout(refreshPanels, 1500); // judges run async; give them a moment
+  // The judges are two more model calls running after this reply was
+  // sent, so their verdict lands seconds later. Poll until the verdict
+  // carries this turn's number rather than checking once and giving up.
+  awaitJudgment(turn.turn);
+}
+
+async function awaitJudgment(turnNumber, attempt = 0) {
+  await refreshPanels();
+  const judged = lastJudgment && lastJudgment.turn === turnNumber;
+  if (!judged && attempt < 12) {
+    setTimeout(() => awaitJudgment(turnNumber, attempt + 1), 1200);
+  }
 }
 
 function showSentence(text, assessment) {
@@ -310,6 +321,7 @@ function showSentence(text, assessment) {
 // --- Instrument panels -------------------------------------------------
 
 let lastSignals = null; // S1/S2 from the turn; S3/S4 arrive with the judges
+let lastJudgment = null;
 
 function metric(value, label) {
   return '<div class="metric"><b>' + value + "</b><span>" + label + "</span></div>";
@@ -362,25 +374,36 @@ function renderSignals(judgment) {
   $("signals").innerHTML = html;
 }
 
+// Misses per opportunity, not raw misses: "the" appears in nearly every
+// sentence, so by volume it would always look like the hardest word.
+const SMOOTHING = 2;
+const rank = (counts, attempts) =>
+  Object.entries(counts || {})
+    .map(([key, misses]) => {
+      const tries = (attempts || {})[key] || misses;
+      return { key, misses, tries, rate: misses / (tries + SMOOTHING) };
+    })
+    .sort((a, b) => b.rate - a.rate);
+
 async function refreshPanels() {
   const profile = await getJSON("/api/profile");
-  const sounds = Object.entries(profile.weak_phonemes || {}).sort((a, b) => b[1] - a[1]);
-  const maxMisses = sounds.length ? sounds[0][1] : 1;
+  const sounds = rank(profile.weak_phonemes, profile.phoneme_attempts);
   let html = '<div class="metrics">' + metric(profile.level, "level") +
              metric(profile.total_turns, "graded turns") + "</div>";
   if (sounds.length) {
-    html += '<div class="rows">' + sounds.slice(0, 5).map(([p, n]) =>
-      '<div class="row"><span class="k">/' + esc(p) + '/</span>' +
+    html += '<div class="rows">' + sounds.slice(0, 5).map((s) =>
+      '<div class="row"><span class="k">/' + esc(s.key) + '/</span>' +
       '<span class="track"><i class="warnfill" style="width:' +
-      Math.round((n / maxMisses) * 100) + '%"></i></span>' +
-      '<span class="v">' + n + "</span></div>").join("") + "</div>";
+      Math.round(s.rate * 100) + '%"></i></span>' +
+      '<span class="v">' + s.misses + "/" + s.tries + "</span></div>").join("") + "</div>";
   } else {
     html += '<p class="muted">No weak sounds recorded yet.</p>';
   }
-  const words = Object.entries(profile.missed_words || {}).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  const words = rank(profile.missed_words, profile.word_attempts).slice(0, 6);
   if (words.length) {
     html += '<h2 style="margin:16px 0 6px">Hardest words</h2><div class="wordchips">' +
-            words.map(([w, n]) => "<span>" + esc(w) + " · " + n + "</span>").join("") + "</div>";
+            words.map((w) => "<span>" + esc(w.key) + " · " + w.misses + "/" + w.tries +
+                      "</span>").join("") + "</div>";
   }
   $("profile").innerHTML = html;
 
@@ -391,7 +414,8 @@ async function refreshPanels() {
     metric(piles.finetune_set.count, "finetune set") + "</div>" +
     '<p class="muted">Review holds turns we could not trust. Finetune holds replies the judges faulted — each with context and a slot for a corrected reply.</p>';
 
-  renderSignals(curated.last_judgment);
+  lastJudgment = curated.last_judgment;
+  renderSignals(lastJudgment);
 }
 
 async function resetAll() {

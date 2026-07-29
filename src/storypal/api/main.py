@@ -284,6 +284,7 @@ def create_app(services: Services | None = None) -> FastAPI:
                             record, timings, graded.chat_turn)
 
         return {
+            "turn": state.turn_count,
             "transcript": asr_result.transcript,
             "graded_target": graded.graded_target,  # differs from target in drill mode
             "drill_words": graded.drill_words,
@@ -361,6 +362,7 @@ def _post_loop(state, svc, s1, s2, reply, record: TurnRecord, timings: dict,
             timings_ms=timings, route=decision.route.value,
         )
     state.last_judgment = {
+        "turn": record.turn,  # so the UI knows which turn this verdict is for
         "S3": {"score": s3.score, "reason": s3.reasons[0]},
         "S4": {"score": s4.score, "reason": s4.reasons[0]},
         "route": decision.route.value,

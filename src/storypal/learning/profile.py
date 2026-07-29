@@ -15,12 +15,47 @@ from storypal.core.assessment import Assessment, WordStatus
 from storypal.core.signals import Signal
 
 
+# Misses are counted against opportunities, and a raw count is not the
+# same thing as a difficulty. "the" appears in nearly every sentence, so
+# by volume it will always look like the hardest word in English. The
+# smoothing constant keeps a single miss on a rarely seen word from
+# jumping to the top of the list.
+SMOOTHING = 2
+
+
 @dataclass
 class Profile:
     level: int = 1
     total_turns: int = 0
     weak_phonemes: dict = field(default_factory=dict)  # phoneme -> miss count
     missed_words: dict = field(default_factory=dict)  # word -> miss count
+    phoneme_attempts: dict = field(default_factory=dict)  # phoneme -> times presented
+    word_attempts: dict = field(default_factory=dict)  # word -> times presented
+
+
+def miss_rate(misses: int, attempts: int) -> float:
+    """Share of opportunities missed, smoothed so thin evidence ranks low."""
+    return misses / (attempts + SMOOTHING)
+
+
+def ranked_phonemes(profile: Profile) -> list[tuple[str, float, int, int]]:
+    """(phoneme, rate, misses, attempts), hardest first."""
+    rows = [
+        (p, miss_rate(n, profile.phoneme_attempts.get(p, n)), n,
+         profile.phoneme_attempts.get(p, n))
+        for p, n in profile.weak_phonemes.items()
+    ]
+    return sorted(rows, key=lambda r: -r[1])
+
+
+def ranked_words(profile: Profile) -> list[tuple[str, float, int, int]]:
+    """(word, rate, misses, attempts), hardest first."""
+    rows = [
+        (w, miss_rate(n, profile.word_attempts.get(w, n)), n,
+         profile.word_attempts.get(w, n))
+        for w, n in profile.missed_words.items()
+    ]
+    return sorted(rows, key=lambda r: -r[1])
 
 
 def update_from_turn(profile: Profile, assessment: Assessment, s2: Signal) -> Profile:
@@ -30,6 +65,18 @@ def update_from_turn(profile: Profile, assessment: Assessment, s2: Signal) -> Pr
         return profile
 
     profile.total_turns += 1
+
+    # Every target word presented this turn is an opportunity, whether or
+    # not the child missed it. Without this denominator the profile
+    # measures how often a word appears, not how hard it is.
+    for verdict in assessment.verdicts:
+        word = verdict.target_word
+        if word is None:
+            continue
+        profile.word_attempts[word] = profile.word_attempts.get(word, 0) + 1
+        for phoneme in phonemes_in_word(word):
+            profile.phoneme_attempts[phoneme] = profile.phoneme_attempts.get(phoneme, 0) + 1
+
     troubled = (
         assessment.words_with_status(WordStatus.MISSED)
         + assessment.words_with_status(WordStatus.NEAR_MISS)
@@ -44,10 +91,9 @@ def update_from_turn(profile: Profile, assessment: Assessment, s2: Signal) -> Pr
 
 
 def weakest_phoneme(profile: Profile) -> str | None:
-    """The sound with the most recorded misses, if any."""
-    if not profile.weak_phonemes:
-        return None
-    return max(profile.weak_phonemes, key=profile.weak_phonemes.get)
+    """The sound missed most often relative to how often it came up."""
+    ranked = ranked_phonemes(profile)
+    return ranked[0][0] if ranked else None
 
 
 def render(profile: Profile) -> str:
@@ -55,15 +101,14 @@ def render(profile: Profile) -> str:
     if profile.total_turns == 0:
         return "This is a new learner: no history yet. Start gently at level 1."
     lines = [f"Learner history ({profile.total_turns} turns, level {profile.level}):"]
-    if profile.weak_phonemes:
-        sounds = ", ".join(
-            f"'{p}' ({n} misses)"
-            for p, n in sorted(profile.weak_phonemes.items(), key=lambda kv: -kv[1])
-        )
-        lines.append(f"- struggles with sounds: {sounds}")
-    if profile.missed_words:
-        words = ", ".join(sorted(profile.missed_words, key=profile.missed_words.get, reverse=True)[:5])
-        lines.append(f"- hardest words so far: {words}")
+    sounds = ranked_phonemes(profile)[:4]
+    if sounds:
+        rendered = ", ".join(f"'{p}' (missed {n} of {a})" for p, _, n, a in sounds)
+        lines.append(f"- struggles with sounds: {rendered}")
+    words = ranked_words(profile)[:5]
+    if words:
+        rendered = ", ".join(f"{w} ({n}/{a})" for w, _, n, a in words)
+        lines.append(f"- hardest words so far: {rendered}")
     return "\n".join(lines)
 
 

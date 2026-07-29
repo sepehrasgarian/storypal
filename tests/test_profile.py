@@ -79,3 +79,38 @@ class TestRenderAndPersistence:
 
     def test_loading_missing_file_gives_fresh_profile(self, tmp_path):
         assert load(tmp_path / "nope.json") == Profile()
+
+
+class TestExposureNormalisation:
+    """Raw miss counts measure how often a word appears, not how hard it
+    is. 'the' is in nearly every sentence, so by volume it would always
+    rank as the hardest word in English."""
+
+    def test_common_word_missed_occasionally_ranks_below_a_rare_word_always_missed(self):
+        from storypal.learning.profile import ranked_words
+        profile = Profile(
+            missed_words={"the": 8, "thick": 3},
+            word_attempts={"the": 40, "thick": 3},
+        )
+        assert ranked_words(profile)[0][0] == "thick"
+
+    def test_attempts_are_counted_for_words_read_correctly(self):
+        profile = update_from_turn(Profile(), assess(TARGET, "that thick rug is"), RELIABLE)
+        # Every presented word is an opportunity, hit or miss.
+        assert profile.word_attempts["that"] == 1
+        assert profile.word_attempts["soft"] == 1
+
+    def test_a_single_miss_on_a_rare_sound_does_not_top_the_list(self):
+        from storypal.learning.profile import ranked_phonemes
+        profile = Profile(
+            weak_phonemes={"sh": 1, "th": 6},
+            phoneme_attempts={"sh": 1, "th": 10},
+        )
+        assert ranked_phonemes(profile)[0][0] == "th"
+
+    def test_render_shows_misses_against_opportunities(self):
+        profile = Profile(
+            total_turns=5, missed_words={"thick": 3}, word_attempts={"thick": 4},
+            weak_phonemes={"th": 3}, phoneme_attempts={"th": 4},
+        )
+        assert "missed 3 of 4" in render(profile)
