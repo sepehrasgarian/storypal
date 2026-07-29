@@ -392,20 +392,26 @@ async function refreshPanels() {
   const sounds = rank(profile.weak_phonemes, profile.phoneme_attempts);
   let html = '<div class="metrics">' + metric(profile.level, "level") +
              metric(profile.total_turns, "graded turns") + "</div>";
+  // Show the share of attempts missed, not the raw fraction: a reader
+  // should not have to do arithmetic, and "8/3" reads as a bug even
+  // when it is only old data. The fraction stays in the tooltip.
   if (sounds.length) {
-    html += '<div class="rows">' + sounds.slice(0, 5).map((s) =>
-      '<div class="row"><span class="k">/' + esc(s.key) + '/</span>' +
+    html += '<div class="rows">' + sounds.slice(0, 4).map((s) =>
+      '<div class="row" title="missed ' + s.misses + ' of ' + s.tries + ' attempts">' +
+      '<span class="k">/' + esc(s.key) + '/</span>' +
       '<span class="track"><i class="warnfill" style="width:' +
-      Math.round(s.rate * 100) + '%"></i></span>' +
-      '<span class="v">' + s.misses + "/" + s.tries + "</span></div>").join("") + "</div>";
+      Math.round((s.misses / s.tries) * 100) + '%"></i></span>' +
+      '<span class="v">' + Math.round((s.misses / s.tries) * 100) + "%</span></div>"
+    ).join("") + "</div>";
   } else {
     html += '<p class="muted">No weak sounds recorded yet.</p>';
   }
-  const words = rank(profile.missed_words, profile.word_attempts).slice(0, 6);
+  const words = rank(profile.missed_words, profile.word_attempts).slice(0, 5);
   if (words.length) {
     html += '<h2 style="margin:16px 0 6px">Hardest words</h2><div class="wordchips">' +
-            words.map((w) => "<span>" + esc(w.key) + " · " + w.misses + "/" + w.tries +
-                      "</span>").join("") + "</div>";
+            words.map((w) => '<span title="missed ' + w.misses + ' of ' + w.tries +
+                      ' attempts">' + esc(w.key) + " · " +
+                      Math.round((w.misses / w.tries) * 100) + "%</span>").join("") + "</div>";
   }
   $("profile").innerHTML = html;
 
