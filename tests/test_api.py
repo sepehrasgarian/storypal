@@ -165,6 +165,12 @@ class TestConversationalTurns:
         assert env["client"].get("/api/profile").json()["missed_words"] == {}
         assert body["next_target"] == TARGET
 
+    def test_chat_does_not_pile_up_in_the_review_queue(self, env):
+        env["asr"].next = TranscriptionResult("Yes, I do.", AsrTelemetry(-0.3, 0.1, 1.2))
+        post_turn(env)
+        piles = env["client"].get("/api/curated").json()["piles"]
+        assert piles["review_queue"]["count"] == 0
+
     def test_frustration_is_answered_not_graded(self, env):
         env["asr"].next = TranscriptionResult("Damn it!", AsrTelemetry(-0.3, 0.1, 1.2))
         body = post_turn(env).json()

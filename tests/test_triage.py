@@ -38,6 +38,25 @@ class TestEachRule:
         assert decision.route is Route.ARCHIVE
 
 
+class TestConversationTurns:
+    """Chat trips the novelty check by design (chat words match nothing
+    in the sentence) - but it is not a recognition failure."""
+
+    def test_chat_is_archived_not_reviewed(self, ):
+        decision = route_turn({"S2": unreliable("S2")}, chat_turn=True)
+        assert decision.route is Route.ARCHIVE
+
+    def test_bad_reply_to_chat_still_reaches_finetune_set(self):
+        # Answering a child's hello harshly is worth learning from.
+        decision = route_turn(
+            {"S2": unreliable("S2"), "S4": reliable("S4", score=0.1)}, chat_turn=True
+        )
+        assert decision.route is Route.FINETUNE_SET
+
+    def test_reading_turn_still_routes_to_review(self):
+        assert route_turn({"S2": unreliable("S2")}, chat_turn=False).route is Route.REVIEW_QUEUE
+
+
 class TestPrecedenceAndEdges:
     def test_unreliable_asr_wins_over_judge_failures(self):
         # If the ears failed, the judges were judging garbage: review first.

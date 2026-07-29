@@ -260,10 +260,11 @@ def create_app(services: Services | None = None) -> FastAPI:
             action={"reply": result.reply, "tool_calls": [(n, a) for n, a, _ in result.tool_calls],
                     "style": style},
             reward=reward_from_signals(signals),
-            route=route_turn(signals).route.value,
+            route=route_turn(signals, chat_turn=graded.chat_turn).route.value,
         )
         state.trajectory.append(record)
-        background.add_task(_post_loop, state, svc, s1, s2, assessment, result.reply, record, timings)
+        background.add_task(_post_loop, state, svc, s1, s2, assessment, result.reply,
+                            record, timings, graded.chat_turn)
 
         return {
             "transcript": asr_result.transcript,
@@ -311,13 +312,14 @@ def create_app(services: Services | None = None) -> FastAPI:
     return app
 
 
-def _post_loop(state, svc, s1, s2, assessment, reply, record: TurnRecord, timings: dict) -> None:
+def _post_loop(state, svc, s1, s2, assessment, reply, record: TurnRecord, timings: dict,
+               chat_turn: bool = False) -> None:
     """S3/S4 judges + triage + observability. Runs after the response is sent."""
     summary = "; ".join(s1.reasons) + f" (accuracy {s1.score:.0%}; ASR {'ok' if s2.reliable else 'UNRELIABLE'})"
     s3 = s3_grounding(summary, reply, svc.judge_llm)
     s4 = s4_pedagogy(summary, reply, svc.judge_llm)
     signals = {"S1": s1, "S2": s2, "S3": s3, "S4": s4}
-    decision = route_turn(signals)
+    decision = route_turn(signals, chat_turn=chat_turn)
     if state.exporter is not None:
         state.exporter.export_turn(
             session_id=record.session_id, turn=record.turn, timestamp=record.timestamp,
