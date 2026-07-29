@@ -1,0 +1,18 @@
+{
+  "r:slow_demonstration": {
+    "used": 1,
+    "worked": 0
+  },
+  "r:minimal_pairs": {
+    "used": 1,
+    "worked": 0
+  },
+  "d:slow_demonstration": {
+    "used": 2,
+    "worked": 0
+  },
+  "d:minimal_pairs": {
+    "used": 2,
+    "worked": 0
+  }
+}

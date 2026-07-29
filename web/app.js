@@ -44,6 +44,36 @@ const MOODS = {
   confused: { face: FACE(EYES.squint, MOUTH.wavy), label: "didn't catch that 🤔", cls: "confused" },
 };
 
+// --- Pipeline bar: the turn's real stages and their real durations ----
+
+function pipelineRunning(on) {
+  $("pipeline").classList.toggle("running", on);
+  if (on) {
+    document.querySelectorAll(".pipeline li").forEach((li) => {
+      li.className = "";
+      li.querySelector("i").textContent = "";
+    });
+  }
+}
+
+function pipelineDone(turn) {
+  pipelineRunning(false);
+  const ms = turn.timings_ms || {};
+  const trusted = turn.signals.S2.reliable;
+  const shown = {
+    asr: ms.asr_ms != null ? ms.asr_ms + "ms" : "",
+    grade: "0ms",
+    trust: trusted ? "ok" : "failed",
+    agent: ms.agent_ms != null ? ms.agent_ms + "ms" : "",
+    tts: ms.tts_ms != null ? ms.tts_ms + "ms" : "",
+  };
+  document.querySelectorAll(".pipeline li").forEach((li) => {
+    const stage = li.dataset.stage;
+    li.className = stage === "trust" && !trusted ? "flagged" : "done";
+    li.querySelector("i").textContent = shown[stage] || "";
+  });
+}
+
 function setMood(name) {
   const mood = MOODS[name] || MOODS.idle;
   const face = $("palFace");
@@ -169,6 +199,7 @@ function stopMeter() {
 
 async function submitTurn(blob) {
   setMood("thinking");
+  pipelineRunning(true);
   $("reply").textContent = "Hmm, let me listen…";
   try {
     const form = new FormData();
@@ -185,6 +216,7 @@ async function submitTurn(blob) {
     }
   } catch (err) {
     setMood("confused");
+    pipelineRunning(false);
     $("reply").textContent = "Oops, something went wrong: " + err.message;
   } finally {
     $("recBtn").disabled = false;
@@ -225,6 +257,7 @@ function render(turn) {
   $("transcript").textContent = 'I heard: "' + turn.transcript + '"';
 
   setMood(moodForTurn(turn));
+  pipelineDone(turn);
   lastSignals = turn.signals;
   renderSignals(null); // S1/S2 now; S3/S4 fill in when the judges finish
 
@@ -237,11 +270,12 @@ function render(turn) {
   $("tools").innerHTML = (turn.tool_calls || [])
     .map((t) => '<span class="pill">' + ICONS.tool + esc(t.name) + "</span>").join("");
   $("prompt").textContent = turn.prompt;
+  // Per-stage timings live in the pipeline bar now; the footer keeps
+  // only what the bar cannot show.
+  const total = Object.values(turn.timings_ms || {}).reduce((a, b) => a + b, 0);
   $("latency").innerHTML =
-    '<span class="lat">style <b>' + esc(turn.style) + "</b></span>" +
-    '<span class="lat">ears <b>' + turn.timings_ms.asr_ms + "ms</b></span>" +
-    '<span class="lat">brain <b>' + turn.timings_ms.agent_ms + "ms</b></span>" +
-    '<span class="lat">voice <b>' + turn.timings_ms.tts_ms + "ms</b></span>";
+    '<span class="lat">voice style <b>' + esc(turn.style) + "</b></span>" +
+    '<span class="lat">turn total <b>' + total + "ms</b></span>";
 
   new Audio(turn.audio_url).play().catch(() => {});
   if (turn.next_target && turn.next_target !== target) {
@@ -291,10 +325,21 @@ function signalRow(name, valueText, state, reason) {
   );
 }
 
+function chip(label, value, state) {
+  return '<div class="chip-metric"><span>' + label + "</span>" +
+         '<b class="' + state + '">' + value + "</b></div>";
+}
+
 function renderSignals(judgment) {
   if (!lastSignals) return;
   const s1 = lastSignals.S1, s2 = lastSignals.S2;
-  let html = '<div class="rows">';
+  let html =
+    '<div class="chip-row">' +
+    chip("Reading", Math.round(s1.score * 100) + "%",
+         s1.score >= 0.99 ? "good" : s1.score > 0 ? "info" : "bad") +
+    chip("Ears", s2.reliable ? "Trusted" : "Doubted", s2.reliable ? "good" : "bad") +
+    "</div>";
+  html += '<div class="rows">';
   html += signalRow("S1 · reading", Math.round(s1.score * 100) + "%",
                     s1.score >= 0.99 ? "good" : s1.score > 0 ? "info" : "bad", s1.reasons[0]);
   html += signalRow("S2 · ears", s2.reliable ? "trusted" : "not trusted",

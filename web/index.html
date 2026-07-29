@@ -57,6 +57,42 @@
   .reset-btn:hover { transform: translateY(-1px); }
   .reset-btn:active { transform: scale(.95); }
 
+  /* Pipeline bar: where the system is in this turn, with real timings. */
+  .pipeline {
+    position: relative; z-index: 1; display: flex; align-items: center; gap: 18px;
+    margin: 4px 24px 14px; padding: 9px 18px;
+    background: #F0FAF4; border: 1px solid #C8EBD8; border-radius: 12px;
+    font-family: system-ui, sans-serif; overflow-x: auto;
+  }
+  .pipeline-label {
+    flex: none; font-size: 10.5px; font-weight: 700; letter-spacing: .1em;
+    text-transform: uppercase; color: #3F8560;
+  }
+  .pipeline ol { display: flex; align-items: center; gap: 4px; margin: 0; padding: 0; list-style: none; }
+  .pipeline li {
+    display: flex; align-items: baseline; gap: 7px; white-space: nowrap;
+    padding: 3px 12px 3px 0; font-size: 13px; color: #7E9B8B;
+    transition: color .25s ease;
+  }
+  .pipeline li + li::before {
+    content: "→"; margin-right: 12px; color: #B9DCC9; font-size: 13px;
+  }
+  .pipeline li b { font-weight: 600; }
+  .pipeline li i {
+    font-style: normal; font-size: 11px; font-variant-numeric: tabular-nums;
+    color: #9DB5A8; min-width: 34px;
+  }
+  .pipeline li.done { color: #1B6B43; }
+  .pipeline li.done i { color: #3F8560; }
+  .pipeline li.flagged { color: var(--bad); }
+  .pipeline li.flagged i { color: var(--bad); }
+  .pipeline.running li { animation: sweep 1.1s ease-in-out infinite; }
+  .pipeline.running li:nth-child(2) { animation-delay: .12s; }
+  .pipeline.running li:nth-child(3) { animation-delay: .24s; }
+  .pipeline.running li:nth-child(4) { animation-delay: .36s; }
+  .pipeline.running li:nth-child(5) { animation-delay: .48s; }
+  @keyframes sweep { 50% { color: #1B6B43; } }
+
   main {
     position: relative; z-index: 1;
     display: grid; grid-template-columns: 280px minmax(420px, 1fr) 300px;
@@ -234,6 +270,17 @@
   }
   .metric span { font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--slate-muted); }
 
+  .chip-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+  .chip-metric {
+    background: #fff; border: 1px solid var(--slate-line); border-radius: 10px;
+    padding: 9px 11px; display: flex; flex-direction: column; gap: 2px;
+  }
+  .chip-metric span { font-size: 9.5px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--slate-muted); }
+  .chip-metric b { font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .chip-metric b.good { color: var(--sig-good); }
+  .chip-metric b.bad { color: var(--sig-bad); }
+  .chip-metric b.info { color: var(--sig-info); }
+
   .rows { display: flex; flex-direction: column; }
   .row {
     display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center;
@@ -331,11 +378,7 @@
        and help with the tricky words.</p>
     <p class="pitch">
       <b>An AI reading tutor every child can afford.</b>
-      One-to-one tutoring lifts a struggling reader by two grade levels —
-      and costs $60 an hour. StoryPal listens to a child read aloud,
-      scores every word against the page, and adapts the lesson in real
-      time. It also knows when <i>not</i> to trust its own ears, so it
-      never corrects a child who read perfectly.
+      It listens, scores every word — and knows when it has misheard you.
     </p>
     <button id="startBtn" class="start-btn">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.14v14l11-7-11-7z"/></svg>
@@ -355,6 +398,17 @@
   </div>
   <button class="reset-btn" onclick="resetAll()">Start over</button>
 </header>
+
+<nav class="pipeline" id="pipeline" aria-label="Turn pipeline">
+  <span class="pipeline-label">Turn pipeline</span>
+  <ol>
+    <li data-stage="asr"><b>Listen</b><i></i></li>
+    <li data-stage="grade"><b>Grade</b><i></i></li>
+    <li data-stage="trust"><b>Trust check</b><i></i></li>
+    <li data-stage="agent"><b>Teach</b><i></i></li>
+    <li data-stage="tts"><b>Speak</b><i></i></li>
+  </ol>
+</nav>
 
 <main>
   <section class="panel">
