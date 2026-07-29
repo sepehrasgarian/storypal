@@ -91,6 +91,20 @@ def create_app(services: Services | None = None) -> FastAPI:
     web_dir = Path(__file__).parents[3] / "web"
     app.mount("/web", StaticFiles(directory=web_dir), name="web")
 
+    @app.middleware("http")
+    async def revalidate_static(request, call_next):
+        """Force the browser to revalidate the page assets.
+
+        Starlette serves an ETag but no Cache-Control, so browsers fall
+        back to heuristic caching and can run a stale script for a long
+        time. That cost real debugging once: a fixed front end sat on
+        disk and in the response while the browser kept the old one.
+        """
+        response = await call_next(request)
+        if request.url.path.startswith("/web") or request.url.path == "/":
+            response.headers["Cache-Control"] = "no-cache"
+        return response
+
     @app.get("/")
     def index():
         return FileResponse(web_dir / "index.html")
