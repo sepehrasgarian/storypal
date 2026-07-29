@@ -18,74 +18,135 @@ from storypal.config import STORIES, Story
 
 @dataclass(frozen=True)
 class Tactic:
+    """One way to teach one sound.
+
+    Tactics are drawn from established reading instruction rather than
+    invented: Orton-Gillingham articulatory cues (feel the sound in the
+    mouth and throat), Elkonin sound boxes (segment, then blend),
+    minimal pairs (contrast with the sound the child substitutes), word
+    families (onset-rime), and gradual release ("I do, we do, you do").
+    Each is adapted to an audio-only channel - nothing here needs paper,
+    counters or a mirror, only the child's own voice and hands.
+    """
+
     name: str
     phoneme: str
-    instructions: str  # what the tutor should do
+    instructions: str  # scripted guidance handed to the tutor
     example_words: tuple[str, ...]
+    source: str = ""  # the method this comes from, for provenance
 
 
 TACTICS: list[Tactic] = [
+    # --- th ------------------------------------------------------------
     Tactic(
-        "slow_demonstration", "th",
-        "Say the word very slowly, stretching the 'th': tongue peeks between the teeth.",
-        ("three", "throw", "through"),
+        "articulatory_cue", "th",
+        "Tell them to put a hand on their throat and poke their tongue "
+        "just between their teeth. 'thumb' is quiet, 'mother' buzzes - "
+        "same tongue, different throat.",
+        ("thumb", "this", "three"),
+        source="Orton-Gillingham articulatory cue (voiced/unvoiced contrast)",
     ),
     Tactic(
         "minimal_pairs", "th",
-        "Contrast the sound with a similar one the child already knows: tree/three, tank/thank.",
+        "Contrast it with the sound they swapped in: tree/three, "
+        "tank/thank. Say both, ask which one has the tongue peeking out.",
         ("tree", "three", "tank", "thank"),
+        source="minimal pairs (phonological contrast)",
     ),
     Tactic(
-        "slow_demonstration", "r",
-        "Model the 'r' slowly with a small growl sound, then blend it into the word.",
-        ("red", "run", "roar"),
+        "sound_boxes", "th",
+        "Segment then blend: have them tap a finger for each sound - "
+        "/th/ /i/ /s/ - then sweep the taps together into 'this'.",
+        ("this", "that", "with"),
+        source="Elkonin sound boxes, adapted to taps for an audio-only channel",
     ),
+    # --- sh ------------------------------------------------------------
     Tactic(
-        "word_families", "ch",
-        "Practice a family of words sharing the sound: chip, chat, chin.",
-        ("chip", "chat", "chin"),
-    ),
-    Tactic(
-        "word_families", "sh",
-        "Practice a family of words sharing the sound: ship, shop, shine.",
-        ("ship", "shop", "shine"),
+        "articulatory_cue", "sh",
+        "Lips pushed forward like blowing a kiss, teeth nearly shut, "
+        "long quiet air: 'shhh' - the sound for asking a room to be quiet.",
+        ("ship", "shop", "shed"),
+        source="Orton-Gillingham articulatory cue",
     ),
     Tactic(
         "minimal_pairs", "sh",
-        "Contrast with the plain 's': sip/ship, sell/shell.",
+        "Contrast with plain /s/: sip/ship, sell/shell. One hisses "
+        "sharp, one is soft and wide.",
         ("sip", "ship", "sell", "shell"),
+        source="minimal pairs (phonological contrast)",
     ),
-    # Every tracked sound needs at least one tactic, or the strategy KB
-    # silently has nothing to offer for a child who is struggling.
+    # --- ch ------------------------------------------------------------
     Tactic(
-        "slow_demonstration", "s",
-        "Stretch the 's' like a snake: sss-un. Teeth together, air hissing out.",
-        ("sun", "sit", "six"),
-    ),
-    Tactic(
-        "word_families", "s",
-        "Practice a family sharing the sound: sun, sit, sad, six.",
-        ("sun", "sit", "sad", "six"),
+        "articulatory_cue", "ch",
+        "A tiny sneeze, or a train pulling away: ch-ch-ch. Stop the air "
+        "first, then let it burst.",
+        ("chip", "chat", "chin"),
+        source="Orton-Gillingham articulatory cue",
     ),
     Tactic(
-        "slow_demonstration", "t",
-        "Tap the tongue behind the front teeth: t-t-top. Short and crisp.",
-        ("top", "ten", "tap"),
+        "word_families", "ch",
+        "Practise a family that shares the sound so only the ending "
+        "changes: chip, chat, chin.",
+        ("chip", "chat", "chin"),
+        source="onset-rime word families",
     ),
+    # --- r -------------------------------------------------------------
     Tactic(
-        "slow_demonstration", "d",
-        "Like 't' but with a humming voice: d-d-dog. Feel the throat buzz.",
-        ("dog", "dad", "dig"),
-    ),
-    Tactic(
-        "minimal_pairs", "d",
-        "Contrast with 't': tap/dab, ten/den - one hums, one does not.",
-        ("tap", "dab", "ten", "den"),
+        "articulatory_cue", "r",
+        "Growl like a small tiger: tongue pulled back, touching nothing, "
+        "throat humming - rrr-ed.",
+        ("red", "run", "rug"),
+        source="Orton-Gillingham articulatory cue",
     ),
     Tactic(
         "minimal_pairs", "r",
-        "Contrast with 'w': run/won, red/wed.",
+        "Children often swap /w/ for /r/. Contrast them: run/won, "
+        "red/wed - lips round for /w/, tongue back for /r/.",
         ("run", "won", "red", "wed"),
+        source="minimal pairs (targets the common r/w substitution)",
+    ),
+    # --- s -------------------------------------------------------------
+    Tactic(
+        "articulatory_cue", "s",
+        "A snake sound: teeth almost closed, tongue behind them, thin "
+        "air hissing out - sss-un. No buzzing in the throat.",
+        ("sun", "sit", "six"),
+        source="Orton-Gillingham articulatory cue",
+    ),
+    Tactic(
+        "word_families", "s",
+        "Practise a family sharing the sound: sun, sit, sad, six.",
+        ("sun", "sit", "sad", "six"),
+        source="onset-rime word families",
+    ),
+    # --- t -------------------------------------------------------------
+    Tactic(
+        "articulatory_cue", "t",
+        "Tongue taps the ridge behind the top teeth and springs off - "
+        "quick, crisp, no voice: t-t-top.",
+        ("top", "ten", "tap"),
+        source="Orton-Gillingham articulatory cue",
+    ),
+    Tactic(
+        "gradual_release", "t",
+        "I do, we do, you do: say the word yourself first, then invite "
+        "them to say it with you, then let them say it alone.",
+        ("top", "ten", "tap"),
+        source="gradual release of responsibility (explicit instruction)",
+    ),
+    # --- d -------------------------------------------------------------
+    Tactic(
+        "articulatory_cue", "d",
+        "The same tongue tap as /t/, but with a hand on the throat to "
+        "feel it hum: d-d-dog. /t/ is silent there, /d/ buzzes.",
+        ("dog", "dad", "dig"),
+        source="Orton-Gillingham articulatory cue (voiced/unvoiced contrast)",
+    ),
+    Tactic(
+        "minimal_pairs", "d",
+        "Contrast with /t/: tap/dab, ten/den. Same mouth, one hums.",
+        ("tap", "dab", "ten", "den"),
+        source="minimal pairs (phonological contrast)",
     ),
 ]
 

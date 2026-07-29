@@ -39,6 +39,29 @@ class TestContentKB:
         assert next_sentence(level=1, exclude={s.text for s in STORIES}) is None
 
 
+class TestTacticProvenance:
+    """Tactics come from established reading instruction, not invention,
+    and must work over an audio-only channel."""
+
+    def test_every_tracked_sound_has_a_tactic(self):
+        from storypal.config import TRACKED_PHONEMES
+        from storypal.learning.kb import TACTICS
+        covered = {t.phoneme for t in TACTICS}
+        assert set(TRACKED_PHONEMES) <= covered
+
+    def test_every_tactic_cites_its_method(self):
+        from storypal.learning.kb import TACTICS
+        assert all(t.source for t in TACTICS)
+
+    def test_sounds_have_alternatives_to_choose_between(self):
+        # A scoreboard is pointless if there is only ever one option.
+        from storypal.learning.kb import TACTICS
+        counts = {}
+        for t in TACTICS:
+            counts[t.phoneme] = counts.get(t.phoneme, 0) + 1
+        assert all(n >= 2 for n in counts.values())
+
+
 class TestStrategyKB:
     def test_untried_tactics_start_at_half(self, tmp_path):
         stats = TacticStats(tmp_path / "tactics.json")
@@ -47,25 +70,25 @@ class TestStrategyKB:
         assert stats.success_rate(tactic) == 0.5
 
     def test_outcomes_change_which_tactic_wins(self, tmp_path):
-        # slow_demonstration keeps failing; minimal_pairs keeps working.
+        # articulatory_cue keeps failing; minimal_pairs keeps working.
         stats = TacticStats(tmp_path / "tactics.json")
-        slow = next(t for t in _th_tactics() if t.name == "slow_demonstration")
+        cue = next(t for t in _th_tactics() if t.name == "articulatory_cue")
         pairs = next(t for t in _th_tactics() if t.name == "minimal_pairs")
         for _ in range(3):
-            stats.record_usage(slow)
-            stats.record_outcome(slow, worked=False)
+            stats.record_usage(cue)
+            stats.record_outcome(cue, worked=False)
             stats.record_usage(pairs)
             stats.record_outcome(pairs, worked=True)
         assert best_tactic("th", stats).name == "minimal_pairs"
 
     def test_stats_persist_across_reloads(self, tmp_path):
         path = tmp_path / "tactics.json"
-        slow = next(t for t in _th_tactics() if t.name == "slow_demonstration")
+        cue = next(t for t in _th_tactics() if t.name == "articulatory_cue")
         stats = TacticStats(path)
-        stats.record_usage(slow)
-        stats.record_outcome(slow, worked=True)
+        stats.record_usage(cue)
+        stats.record_outcome(cue, worked=True)
         reloaded = TacticStats(path)
-        assert reloaded.success_rate(slow) == (1 + 1) / (1 + 2)
+        assert reloaded.success_rate(cue) == (1 + 1) / (1 + 2)
 
     def test_unknown_phoneme_has_no_tactic(self, tmp_path):
         assert best_tactic("zz", TacticStats(tmp_path / "t.json")) is None
