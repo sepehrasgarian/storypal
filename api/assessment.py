@@ -9,7 +9,11 @@ import re
 from dataclasses import dataclass
 from enum import Enum
 
-from api.config import NEAR_MISS_MAX_EDIT_DISTANCE
+from api.config import (
+    NEAR_MISS_MAX_EDIT_DISTANCE,
+    SHORT_WORD_LEN,
+    SHORT_WORD_MAX_EDIT_DISTANCE,
+)
 
 _DIGIT_WORDS = {
     "0": "zero", "1": "one", "2": "two", "3": "three", "4": "four",
@@ -82,6 +86,20 @@ def edit_distance(a: str, b: str) -> int:
     return previous[-1]
 
 
+def is_near_miss(target_word: str, heard_word: str) -> bool:
+    """Close enough in spelling to be a mispronunciation of the target.
+
+    Short words use a tighter threshold: at distance 2 almost every
+    3-letter word resembles some other word.
+    """
+    limit = (
+        SHORT_WORD_MAX_EDIT_DISTANCE
+        if min(len(target_word), len(heard_word)) <= SHORT_WORD_LEN
+        else NEAR_MISS_MAX_EDIT_DISTANCE
+    )
+    return edit_distance(target_word, heard_word) <= limit
+
+
 def assess(target: str, transcript: str) -> Assessment:
     """Grade a transcript against the target sentence."""
     target_words = normalize(target)
@@ -100,8 +118,7 @@ def _classify(op: str, target_word: str | None, heard_word: str | None) -> WordV
         return WordVerdict(WordStatus.ADDED, None, heard_word)
     # Substitution: a close spelling suggests a mispronunciation of the
     # right word rather than a different word entirely.
-    close = edit_distance(target_word, heard_word) <= NEAR_MISS_MAX_EDIT_DISTANCE
-    status = WordStatus.NEAR_MISS if close else WordStatus.SUBSTITUTED
+    status = WordStatus.NEAR_MISS if is_near_miss(target_word, heard_word) else WordStatus.SUBSTITUTED
     return WordVerdict(status, target_word, heard_word)
 
 
@@ -110,7 +127,7 @@ def _substitution_cost(target_word: str, heard_word: str) -> float:
     (a near-miss) rather than with an unrelated target word."""
     if target_word == heard_word:
         return 0.0
-    if edit_distance(target_word, heard_word) <= NEAR_MISS_MAX_EDIT_DISTANCE:
+    if is_near_miss(target_word, heard_word):
         return 0.5
     return 1.0
 

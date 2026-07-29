@@ -31,7 +31,12 @@ STORIES: list[Story] = [
 # --- Assessment ---------------------------------------------------------
 # A substituted word within this edit distance of the target word counts
 # as a near-miss (likely mispronunciation) rather than a different word.
+# Short words get a tighter threshold: at distance 2 almost every
+# 3-letter word resembles another ("now"/"hot"), which would let
+# fabricated chatter pass as near-misses.
 NEAR_MISS_MAX_EDIT_DISTANCE = 2
+SHORT_WORD_LEN = 3
+SHORT_WORD_MAX_EDIT_DISTANCE = 1
 
 # --- S2: ASR reliability thresholds (Whisper telemetry) -----------------
 ASR_NO_SPEECH_UNRELIABLE = 0.5  # above this, probably silence

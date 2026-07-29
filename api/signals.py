@@ -10,14 +10,13 @@ when the recognizer is unreliable, the assessment must not be acted on.
 
 from dataclasses import dataclass, field
 
-from api.assessment import Assessment, WordStatus, edit_distance, normalize
+from api.assessment import Assessment, WordStatus, is_near_miss, normalize
 from api.config import (
     ASR_AVG_LOGPROB_UNRELIABLE,
     ASR_COMPRESSION_RATIO_UNRELIABLE,
     ASR_NO_SPEECH_UNRELIABLE,
     ASR_NOVEL_WORD_RATIO_UNRELIABLE,
     FUNCTION_WORDS,
-    NEAR_MISS_MAX_EDIT_DISTANCE,
 )
 
 
@@ -107,10 +106,7 @@ def _novel_word_ratio(assessment: Assessment) -> float:
             return True
         # An added/substituted word still close to *some* target word is a
         # misplacement, not fabrication.
-        return any(
-            edit_distance(verdict.heard_word, t) <= NEAR_MISS_MAX_EDIT_DISTANCE
-            for t in target_words
-        )
+        return any(is_near_miss(t, verdict.heard_word) for t in target_words)
 
     novel = sum(1 for v in heard if not explained(v))
     return novel / len(heard)

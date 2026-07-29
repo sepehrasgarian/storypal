@@ -1,0 +1,81 @@
+[
+  {"name": "perfect read",
+   "target": "The bird flew through the trees.", "transcript": "the bird flew through the trees",
+   "telemetry": {"avg_logprob": -0.2, "no_speech_prob": 0.05, "compression_ratio": 1.3},
+   "expect": {"s2_reliable": true, "accuracy_min": 1.0, "problem_words": []}},
+
+  {"name": "perfect read with shouting punctuation",
+   "target": "The bird flew through the trees.", "transcript": "THE BIRD FLEW THROUGH THE TREES!!!",
+   "telemetry": {"avg_logprob": -0.3, "no_speech_prob": 0.05, "compression_ratio": 1.2},
+   "expect": {"s2_reliable": true, "accuracy_min": 1.0, "problem_words": []}},
+
+  {"name": "one missed word",
+   "target": "The bird flew through the trees.", "transcript": "the bird flew the trees",
+   "telemetry": {"avg_logprob": -0.3, "no_speech_prob": 0.1, "compression_ratio": 1.2},
+   "expect": {"s2_reliable": true, "accuracy_max": 0.99, "problem_words": ["through"]}},
+
+  {"name": "near-miss mispronunciation",
+   "target": "The bird flew through the trees.", "transcript": "the bird floo through the trees",
+   "telemetry": {"avg_logprob": -0.5, "no_speech_prob": 0.1, "compression_ratio": 1.3},
+   "expect": {"s2_reliable": true, "problem_words": ["flew"]}},
+
+  {"name": "clear substitution",
+   "target": "The bird flew through the trees.", "transcript": "the bird jumped through the trees",
+   "telemetry": {"avg_logprob": -0.4, "no_speech_prob": 0.1, "compression_ratio": 1.2},
+   "expect": {"s2_reliable": true, "problem_words": ["flew"]}},
+
+  {"name": "added harmless words",
+   "target": "The cat sat on the mat.", "transcript": "the cat um sat on the mat",
+   "telemetry": {"avg_logprob": -0.5, "no_speech_prob": 0.1, "compression_ratio": 1.3},
+   "expect": {"s2_reliable": true, "accuracy_min": 1.0, "problem_words": []}},
+
+  {"name": "digits normalized",
+   "target": "Three small ships sailed north.", "transcript": "3 small ships sailed north",
+   "telemetry": {"avg_logprob": -0.3, "no_speech_prob": 0.05, "compression_ratio": 1.2},
+   "expect": {"s2_reliable": true, "accuracy_min": 1.0, "problem_words": []}},
+
+  {"name": "two mistakes at once",
+   "target": "She threw the ball over there.", "transcript": "she threw ball over here",
+   "telemetry": {"avg_logprob": -0.5, "no_speech_prob": 0.1, "compression_ratio": 1.3},
+   "expect": {"s2_reliable": true, "problem_words": ["the", "there"]}},
+
+  {"name": "silence hallucination (classic)",
+   "target": "The bird flew through the trees.", "transcript": "thanks for watching",
+   "telemetry": {"avg_logprob": -1.4, "no_speech_prob": 0.9, "compression_ratio": 1.1},
+   "expect": {"s2_reliable": false}},
+
+  {"name": "confident fabrication caught by novelty",
+   "target": "The bird flew through the trees.", "transcript": "please subscribe to my channel",
+   "telemetry": {"avg_logprob": -0.3, "no_speech_prob": 0.1, "compression_ratio": 1.2},
+   "expect": {"s2_reliable": false}},
+
+  {"name": "low-confidence mumble",
+   "target": "The bird flew through the trees.", "transcript": "the bird few the tree",
+   "telemetry": {"avg_logprob": -1.6, "no_speech_prob": 0.2, "compression_ratio": 1.3},
+   "expect": {"s2_reliable": false}},
+
+  {"name": "repetition loop hallucination",
+   "target": "The cat sat on the mat.", "transcript": "the the the the the the the the",
+   "telemetry": {"avg_logprob": -0.6, "no_speech_prob": 0.2, "compression_ratio": 3.4},
+   "expect": {"s2_reliable": false}},
+
+  {"name": "empty transcript with silence telemetry",
+   "target": "The cat sat on the mat.", "transcript": "",
+   "telemetry": {"avg_logprob": 0.0, "no_speech_prob": 1.0, "compression_ratio": 1.0},
+   "expect": {"s2_reliable": false}},
+
+  {"name": "off-script chatter",
+   "target": "The sun is hot today.", "transcript": "mommy can we play a game now",
+   "telemetry": {"avg_logprob": -0.4, "no_speech_prob": 0.1, "compression_ratio": 1.3},
+   "expect": {"s2_reliable": false}},
+
+  {"name": "real mistakes must not look like fabrication",
+   "target": "The bird flew through the trees.", "transcript": "the bird floo the trees",
+   "telemetry": {"avg_logprob": -0.6, "no_speech_prob": 0.15, "compression_ratio": 1.3},
+   "expect": {"s2_reliable": true, "problem_words": ["flew", "through"]}},
+
+  {"name": "skipped half the sentence but honestly",
+   "target": "Thunder rumbled through the thick clouds.", "transcript": "thunder rumbled",
+   "telemetry": {"avg_logprob": -0.4, "no_speech_prob": 0.2, "compression_ratio": 1.1},
+   "expect": {"s2_reliable": true, "problem_words": ["through", "the", "thick", "clouds"]}}
+]
