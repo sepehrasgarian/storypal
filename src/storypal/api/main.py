@@ -21,7 +21,9 @@ from storypal import observability
 from storypal.agent.judges import s3_grounding, s4_pedagogy
 from storypal.agent.loop import run_turn
 from storypal.agent.tools import ToolContext
-from storypal.config import DATA_DIR, PROFILE_PATH, STORIES, TRAJECTORY_PATH
+from storypal.config import DATA_DIR, PROFILE_PATH, STORIES, TRAJECTORY_PATH, phonemes_in_word
+from storypal.learning.kb import best_tactic
+from storypal.session import problem_words
 from storypal.core.trajectory import TrajectoryLog, TurnRecord, reward_from_signals
 from storypal.core.triage import route_turn
 from storypal.learning import profile as profile_mod
@@ -72,6 +74,9 @@ def create_app(services: Services | None = None) -> FastAPI:
     state.seen = set()
     state.pending_drill = None  # words the child is expected to repeat next
     state.last_tactic = None  # tactic awaiting its outcome signal
+    state.attempts = 0  # tries on the current sentence
+    state.streak = 0  # consecutive accepted reads
+    state.last_target = None
     state.last_prompt = ""
     state.last_judgment = {}
     state.exporter = observability.from_env()  # None unless Langfuse keys set
@@ -220,10 +225,21 @@ def create_app(services: Services | None = None) -> FastAPI:
             state.tactic_stats.record_outcome(state.last_tactic, worked=graded.drill_worked)
             state.last_tactic = None
 
+        state.attempts = state.attempts + 1 if target == state.last_target else 1
+        state.last_target = target
+
+        # The strategy KB is consulted for us, not only when the model
+        # remembers to call drill_sound: every corrective turn now gets
+        # the tactic with the best track record for this child.
+        tactic = _tactic_for(assessment, graded, state)
+        if tactic is not None:
+            state.tactic_stats.record_usage(tactic)
+
         # Tier 1: instructions rebuilt from this turn's state.
         system_prompt = build_prompt(
-            target, assessment, s1, s2, state.profile,
+            target, assessment, s1, s2, state.profile, tactic=tactic,
             drill_words=graded.drill_words, conversational=graded.chat_turn,
+            attempts=state.attempts, streak=state.streak,
         )
         state.last_prompt = system_prompt
 
@@ -240,13 +256,14 @@ def create_app(services: Services | None = None) -> FastAPI:
         style = choose_style(s1.score, s2.reliable)
         audio_file = timed("tts_ms", lambda: svc.tts.synthesize(result.reply, style))
 
+        state.streak = state.streak + 1 if graded.accepted else 0
         if ctx.next_story:
             state.target = ctx.next_story  # the agent chose the next sentence
         elif graded.accepted:
             _advance_target()  # accepted full read: move on automatically
 
         state.pending_drill, state.last_tactic = update_expectations(
-            graded, ctx.tactic_used, state.pending_drill, state.last_tactic
+            graded, ctx.tactic_used or tactic, state.pending_drill, state.last_tactic
         )
 
         state.turn_count += 1
@@ -307,9 +324,25 @@ def create_app(services: Services | None = None) -> FastAPI:
         state.seen = set()
         state.pending_drill = None
         state.last_tactic = None
+        state.attempts = 0
+        state.streak = 0
+        state.last_target = None
         return {"ok": True}
 
     return app
+
+
+def _tactic_for(assessment, graded, state):
+    """The best-performing tactic for the first troublesome sound this
+    turn, or None when there is nothing to teach."""
+    if graded.chat_turn or not graded.s2.reliable or graded.drill_words is not None:
+        return None
+    for word in problem_words(assessment):
+        for phoneme in phonemes_in_word(word):
+            tactic = best_tactic(phoneme, state.tactic_stats)
+            if tactic is not None:
+                return tactic
+    return None
 
 
 def _post_loop(state, svc, s1, s2, assessment, reply, record: TurnRecord, timings: dict,

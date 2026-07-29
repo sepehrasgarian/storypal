@@ -24,6 +24,43 @@ PERSONA = (
 )
 
 
+def _tool_guidance(attempts: int, streak: int, level: int) -> list[str]:
+    """Tell the model when its judgement tools apply, and show the
+    numbers that justify using them. Without concrete grounds in the
+    prompt, a model simply answers in prose and never calls a tool."""
+    from storypal.config import LEVEL_UP_STREAK, MAX_LEVEL, STUCK_ATTEMPTS
+
+    lines = [
+        "",
+        f"Session state: attempt {attempts} at this sentence; "
+        f"{streak} perfect read(s) in a row; level {level}.",
+        "Tools available to you:",
+        "- drill_sound(phoneme): fetch the practice trick that has worked "
+        "best for THIS child. Call it whenever you are about to teach a "
+        "sound - your own wording is not personalised, the tool's is.",
+    ]
+    if streak >= LEVEL_UP_STREAK and level < MAX_LEVEL:
+        lines.append(
+            f"- set_difficulty(level={level + 1}, reason=...): {streak} perfect "
+            "reads in a row - this level is too easy. Call it now."
+        )
+    elif attempts >= STUCK_ATTEMPTS and level > 1:
+        lines.append(
+            f"- set_difficulty(level={level - 1}, reason=...): attempt {attempts} "
+            "on one sentence - this level is too hard. Call it now."
+        )
+    if attempts >= STUCK_ATTEMPTS:
+        lines.append(
+            f"- flag_for_review(reason=...): {attempts} attempts on the same "
+            "sentence. If the child sounds upset or stuck, call it so a "
+            "grown-up can look."
+        )
+    lines.append(
+        "- next_sentence(focus_phoneme=...): move on once this sentence is read well."
+    )
+    return lines
+
+
 def build_prompt(
     target: str,
     assessment: Assessment,
@@ -33,6 +70,8 @@ def build_prompt(
     tactic: Tactic | None = None,
     drill_words: list[str] | None = None,
     conversational: bool = False,
+    attempts: int = 1,
+    streak: int = 0,
 ) -> str:
     """Assemble the full system prompt for this turn.
 
@@ -55,11 +94,14 @@ def build_prompt(
     if conversational:
         sections += _conversational_instructions(assessment, target)
     elif not s2.reliable:
+        # Perception failed: no tools, no teaching, just ask again.
         sections += _unreliable_instructions(s2)
+        return "\n".join(sections)
     elif drill_words is not None:
         sections += _drill_followup_instructions(drill_words, s1, target)
     else:
         sections += _reliable_instructions(assessment, s1, tactic)
+    sections += _tool_guidance(attempts, streak, profile.level)
     return "\n".join(sections)
 
 

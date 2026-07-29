@@ -10,7 +10,7 @@ class TestDerivedPhonemeTags:
 
     def test_tags_match_the_actual_words(self):
         from storypal.config import STORIES
-        story = next(s for s in STORIES if s.text == "The cat sat on the mat.")
+        story = next(s for s in STORIES if s.text == "The sun is hot.")
         assert "th" in story.phonemes  # from "The"
 
     def test_weak_sound_is_practised_at_the_childs_own_level(self):

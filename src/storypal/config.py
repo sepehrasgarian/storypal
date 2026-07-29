@@ -8,20 +8,28 @@ import os
 import re
 from dataclasses import dataclass
 
-# Sounds we track, longest first so 'th' wins over 't' when scanning a
-# word. Lives here because both the learner profile and the story
-# catalogue must agree on what a word exercises.
-TRACKED_PHONEMES = ("th", "ch", "sh", "r", "s", "t", "d")
+# Sounds we track. Lives here because both the learner profile and the
+# story catalogue must agree on what a word exercises.
+#
+# Digraphs map to one sound reliably at either edge of a word (this,
+# fish, much). Single consonants are only trusted word-initially:
+# English mangles them elsewhere - the 'r' in "bird" is an r-coloured
+# vowel, the 's' in "is" says /z/, the 't' in "listen" is silent. We
+# would rather count nothing than count a sound the child never made.
+TRACKED_DIGRAPHS = ("th", "ch", "sh")
+TRACKED_INITIALS = ("r", "s", "t", "d")
+TRACKED_PHONEMES = TRACKED_DIGRAPHS + TRACKED_INITIALS
 
 
 def phonemes_in_word(word: str) -> list[str]:
-    """The tracked sounds a word exercises: 'through' -> ['th', 'r']."""
-    found = []
-    remaining = word.lower()
-    for phoneme in TRACKED_PHONEMES:
-        if phoneme in remaining:
-            found.append(phoneme)
-            remaining = remaining.replace(phoneme, "")
+    """The tracked sounds a word exercises, counted only where spelling
+    predicts sound: 'this' -> ['th'], 'fish' -> ['sh'], 'red' -> ['r'],
+    'through' -> ['th'] (not 'r' - it is buried in a 'thr' blend),
+    'bird' -> [] (that 'r' is not a consonant sound)."""
+    word = word.lower()
+    found = [d for d in TRACKED_DIGRAPHS if word.startswith(d) or word.endswith(d)]
+    if word[:1] in TRACKED_INITIALS and not found:
+        found.append(word[0])
     return found
 
 
@@ -47,16 +55,22 @@ class Story:
         return phonemes_in_sentence(self.text)
 
 
+# Sentences are built from decodable words: the tracked sound sits at
+# the start or end of the word, so a miss really does implicate that
+# sound. This is why the catalogue avoids words like "through" or
+# "bird", where the spelling would lie about what the child said.
 STORIES: list[Story] = [
-    Story("The cat sat on the mat.", level=1),
-    Story("A big red dog ran fast.", level=1),
-    Story("The sun is hot today.", level=1),
-    Story("This fish has three fins.", level=1),
-    Story("The bird flew through the trees.", level=2),
-    Story("Three small ships sailed north.", level=2),
-    Story("She threw the ball over there.", level=2),
-    Story("The children thought about their birthday.", level=3),
-    Story("Thunder rumbled through the thick clouds.", level=3),
+    Story("The sun is hot.", level=1),
+    Story("A red dog ran fast.", level=1),
+    Story("The cat sat on a mat.", level=1),
+    Story("This fish is big.", level=1),
+    Story("She has ten chips.", level=1),
+    Story("That thick rug is soft.", level=2),
+    Story("Three ships sailed to the dock.", level=2),
+    Story("She chose the red socks.", level=2),
+    Story("This chick shall rest with them.", level=2),
+    Story("Thirty thin threads shook in the shed.", level=3),
+    Story("The chef chopped such thick sticks.", level=3),
 ]
 
 # --- Assessment ---------------------------------------------------------
@@ -94,6 +108,12 @@ AUTO_ADVANCE_ACCURACY = 0.99
 # DRILL_FULL_MISMATCH, grade the drill instead of the sentence.
 DRILL_MATCH_ACCURACY = 0.75
 DRILL_FULL_MISMATCH = 0.5
+
+# Grounds for the agent's judgement tools. Tools only get called when
+# the prompt shows the model a concrete reason to call them.
+LEVEL_UP_STREAK = 3  # perfect reads in a row -> offer a harder level
+STUCK_ATTEMPTS = 3  # tries on one sentence -> ease off or flag a human
+MAX_LEVEL = 3
 
 # Children answer the tutor back ("Yes, I do!", "okay"). A short reply
 # made only of these words, that also matches the target poorly, is

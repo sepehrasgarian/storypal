@@ -50,6 +50,43 @@ TACTICS: list[Tactic] = [
         "Practice a family of words sharing the sound: ship, shop, shine.",
         ("ship", "shop", "shine"),
     ),
+    Tactic(
+        "minimal_pairs", "sh",
+        "Contrast with the plain 's': sip/ship, sell/shell.",
+        ("sip", "ship", "sell", "shell"),
+    ),
+    # Every tracked sound needs at least one tactic, or the strategy KB
+    # silently has nothing to offer for a child who is struggling.
+    Tactic(
+        "slow_demonstration", "s",
+        "Stretch the 's' like a snake: sss-un. Teeth together, air hissing out.",
+        ("sun", "sit", "six"),
+    ),
+    Tactic(
+        "word_families", "s",
+        "Practice a family sharing the sound: sun, sit, sad, six.",
+        ("sun", "sit", "sad", "six"),
+    ),
+    Tactic(
+        "slow_demonstration", "t",
+        "Tap the tongue behind the front teeth: t-t-top. Short and crisp.",
+        ("top", "ten", "tap"),
+    ),
+    Tactic(
+        "slow_demonstration", "d",
+        "Like 't' but with a humming voice: d-d-dog. Feel the throat buzz.",
+        ("dog", "dad", "dig"),
+    ),
+    Tactic(
+        "minimal_pairs", "d",
+        "Contrast with 't': tap/dab, ten/den - one hums, one does not.",
+        ("tap", "dab", "ten", "den"),
+    ),
+    Tactic(
+        "minimal_pairs", "r",
+        "Contrast with 'w': run/won, red/wed.",
+        ("run", "won", "red", "wed"),
+    ),
 ]
 
 
