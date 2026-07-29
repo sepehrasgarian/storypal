@@ -7,6 +7,12 @@ let chunks = [];
 
 const $ = (id) => document.getElementById(id);
 
+const ICONS = {
+  tool: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>',
+  ok: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
+  warn: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>',
+};
+
 async function init() {
   target = (await getJSON("/api/story")).target;
   showSentence(target, []);
@@ -15,11 +21,20 @@ async function init() {
   const btn = $("recBtn");
   btn.addEventListener("mousedown", startRecording);
   btn.addEventListener("mouseup", stopRecording);
+  btn.addEventListener("mouseleave", stopRecording);
   btn.addEventListener("touchstart", (e) => { e.preventDefault(); startRecording(); });
   btn.addEventListener("touchend", (e) => { e.preventDefault(); stopRecording(); });
+  // Keyboard: hold Space or Enter to record.
+  btn.addEventListener("keydown", (e) => {
+    if ((e.key === " " || e.key === "Enter") && !e.repeat) { e.preventDefault(); startRecording(); }
+  });
+  btn.addEventListener("keyup", (e) => {
+    if (e.key === " " || e.key === "Enter") { e.preventDefault(); stopRecording(); }
+  });
 }
 
 async function startRecording() {
+  if (recorder && recorder.state === "recording") return;
   const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
   chunks = [];
   recorder = new MediaRecorder(stream);
@@ -27,22 +42,20 @@ async function startRecording() {
   recorder.onstop = () => submitTurn(new Blob(chunks, { type: recorder.mimeType }));
   recorder.start();
   $("recBtn").classList.add("recording");
-  $("recBtn").textContent = "🔴 Reading… release when done";
+  $("recLabel").textContent = "Reading… let go when done";
 }
 
 function stopRecording() {
-  if (recorder && recorder.state === "recording") {
-    recorder.stop();
-    recorder.stream.getTracks().forEach((t) => t.stop());
-  }
-  const btn = $("recBtn");
-  btn.classList.remove("recording");
-  btn.textContent = "🎤 Hold to read";
-  btn.disabled = true;
+  if (!recorder || recorder.state !== "recording") return;
+  recorder.stop();
+  recorder.stream.getTracks().forEach((t) => t.stop());
+  $("recBtn").classList.remove("recording");
+  $("recBtn").disabled = true;
+  $("recLabel").textContent = "Thinking…";
 }
 
 async function submitTurn(blob) {
-  $("reply").textContent = "Listening…";
+  $("reply").textContent = "Hmm, let me listen…";
   try {
     const form = new FormData();
     form.append("audio", blob, "read.webm");
@@ -51,30 +64,31 @@ async function submitTurn(blob) {
     if (!res.ok) throw new Error(await res.text());
     render(await res.json());
   } catch (err) {
-    $("reply").textContent = "Something went wrong: " + err.message;
+    $("reply").textContent = "Oops, something went wrong: " + err.message;
   } finally {
     $("recBtn").disabled = false;
+    $("recLabel").textContent = "Hold to read";
   }
 }
 
 function render(turn) {
   showSentence(target, turn.assessment);
-  $("transcript").textContent = 'heard: "' + turn.transcript + '"';
+  $("transcript").textContent = 'I heard: "' + turn.transcript + '"';
 
   const s2 = turn.signals.S2;
   $("asrFlag").innerHTML = s2.reliable
-    ? '<div class="flag ok">ears trusted — ' + esc(s2.reasons[0]) + "</div>"
-    : '<div class="flag bad">⚠ ears NOT trusted — ' + esc(s2.reasons.join("; ")) + "</div>";
+    ? '<div class="flag ok">' + ICONS.ok + " ears trusted — " + esc(s2.reasons[0]) + "</div>"
+    : '<div class="flag bad">' + ICONS.warn + " ears NOT trusted — " + esc(s2.reasons.join("; ")) + "</div>";
 
   $("reply").textContent = turn.reply;
   $("tools").innerHTML = (turn.tool_calls || [])
-    .map((t) => '<span class="pill">🔧 ' + esc(t.name) + "</span>").join("");
+    .map((t) => '<span class="pill">' + ICONS.tool + esc(t.name) + "</span>").join("");
   $("prompt").textContent = turn.prompt;
-  $("latency").textContent =
-    "style: " + turn.style +
-    "  ·  asr " + turn.timings_ms.asr_ms + "ms" +
-    "  ·  agent " + turn.timings_ms.agent_ms + "ms" +
-    "  ·  tts " + turn.timings_ms.tts_ms + "ms";
+  $("latency").innerHTML =
+    '<span class="lat">style <b>' + esc(turn.style) + "</b></span>" +
+    '<span class="lat">ears <b>' + turn.timings_ms.asr_ms + "ms</b></span>" +
+    '<span class="lat">brain <b>' + turn.timings_ms.agent_ms + "ms</b></span>" +
+    '<span class="lat">voice <b>' + turn.timings_ms.tts_ms + "ms</b></span>";
 
   new Audio(turn.audio_url).play().catch(() => {});
   if (turn.next_target && turn.next_target !== target) {
@@ -98,23 +112,42 @@ function showSentence(text, assessment) {
 
 async function refreshPanels() {
   const profile = await getJSON("/api/profile");
-  const sounds = Object.entries(profile.weak_phonemes || {})
-    .sort((a, b) => b[1] - a[1])
-    .map(([p, n]) => "<li>'" + esc(p) + "' — " + n + " misses</li>").join("");
-  $("profile").innerHTML =
-    "level " + profile.level + " · " + profile.total_turns + " turns" +
-    (sounds ? "<ul>" + sounds + "</ul>" : "<br>no weak sounds recorded");
+  const sounds = Object.entries(profile.weak_phonemes || {}).sort((a, b) => b[1] - a[1]);
+  const maxMisses = sounds.length ? sounds[0][1] : 1;
+  let html =
+    '<div class="stat-row">' +
+    '<div class="stat"><b>' + profile.level + "</b><span>level</span></div>" +
+    '<div class="stat"><b>' + profile.total_turns + "</b><span>turns</span></div>" +
+    "</div>";
+  if (sounds.length) {
+    html += '<ul class="sound-list">' + sounds.map(([p, n]) =>
+      '<li><span class="sound-chip">' + esc(p) + '</span><span class="bar"><i style="width:' +
+      Math.round((n / maxMisses) * 100) + '%"></i></span>' + n + "</li>").join("") + "</ul>";
+  } else {
+    html += '<p class="muted">No tricky sounds recorded yet.</p>';
+  }
+  $("profile").innerHTML = html;
 
   const curated = await getJSON("/api/curated");
   const piles = curated.piles;
-  let html = "review queue: <b>" + piles.review_queue.count + "</b><br>" +
-             "finetune set: <b>" + piles.finetune_set.count + "</b>";
+  let cur =
+    '<div class="stat-row">' +
+    '<div class="stat"><b>' + piles.review_queue.count + "</b><span>review</span></div>" +
+    '<div class="stat"><b>' + piles.finetune_set.count + "</b><span>finetune</span></div>" +
+    "</div>";
   if (curated.last_judgment && curated.last_judgment.route) {
     const j = curated.last_judgment;
-    html += '<div class="flag ' + (j.route === "archive" ? "ok" : "bad") + '">last turn → ' +
-            esc(j.route) + "<br>S3 " + j.S3.score + " · S4 " + j.S4.score + "</div>";
+    cur += '<div class="verdict"><div class="flag ' + (j.route === "archive" ? "ok" : "bad") + '">' +
+           (j.route === "archive" ? ICONS.ok : ICONS.warn) + " last turn → " + esc(j.route) + "</div>" +
+           judgeRow("S3 grounded", j.S3) + judgeRow("S4 kind & on-target", j.S4) + "</div>";
   }
-  $("curated").innerHTML = html;
+  $("curated").innerHTML = cur;
+}
+
+function judgeRow(label, judge) {
+  const cls = judge.score >= 0.5 ? "score-good" : "score-bad";
+  return '<div class="judge-row"><span class="judge-score ' + cls + '">' + judge.score.toFixed(1) +
+         "</span>" + esc(label) + '<span class="muted" style="font-size:11.5px"> — ' + esc(judge.reason) + "</span></div>";
 }
 
 async function resetAll() {
@@ -123,6 +156,8 @@ async function resetAll() {
   showSentence(target, []);
   refreshPanels();
   $("reply").textContent = "Fresh start! Hold the button and read the sentence.";
+  $("transcript").textContent = "";
+  $("asrFlag").innerHTML = "";
 }
 
 const getJSON = async (url) => (await fetch(url)).json();

@@ -4,81 +4,261 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>StoryPal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Comic+Neue:wght@400;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #faf7f2; --card: #ffffff; --ink: #2b2b33; --muted: #7a7a85;
-    --accent: #5b6ee1; --good: #2e9e5b; --bad: #d64545; --warn: #d69a2e;
-    --border: #e7e2d8;
+    --primary: #F97316;
+    --primary-dark: #EA580C;
+    --on-primary: #FFFFFF;
+    --accent: #2563EB;
+    --bg: #FFF7ED;
+    --ink: #9A3412;
+    --ink-strong: #7C2D12;
+    --body: #57534E;
+    --card: #FFFFFF;
+    --border: #FED7AA;
+    --good: #16A34A;
+    --bad: #DC2626;
+    --warn: #B45309;
+    --clay-shadow: 0 8px 20px rgba(154, 52, 18, .10), inset 0 -4px 8px rgba(154, 52, 18, .06), inset 0 4px 8px rgba(255, 255, 255, .9);
+    --clay-shadow-sm: 0 4px 12px rgba(154, 52, 18, .08), inset 0 -2px 5px rgba(154, 52, 18, .05), inset 0 2px 5px rgba(255, 255, 255, .8);
   }
   * { box-sizing: border-box; }
-  body { margin: 0; font-family: "Avenir Next", "Segoe UI", sans-serif; background: var(--bg); color: var(--ink); }
-  header { padding: 18px 28px; display: flex; align-items: baseline; gap: 14px; }
-  header h1 { margin: 0; font-size: 22px; }
-  header span { color: var(--muted); font-size: 13px; }
-  main { display: grid; grid-template-columns: 260px 1fr 300px; gap: 16px; padding: 0 24px 24px; }
-  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
-  .card h2 { margin: 0 0 10px; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
-  #stage { display: flex; flex-direction: column; gap: 16px; }
-  #sentence { font-size: 30px; line-height: 1.45; text-align: center; padding: 26px 12px; }
-  #sentence .w-correct { color: var(--good); }
-  #sentence .w-missed { color: var(--bad); text-decoration: underline wavy; }
-  #sentence .w-near_miss { color: var(--warn); text-decoration: underline dotted; }
-  #sentence .w-substituted { color: var(--bad); }
-  #controls { text-align: center; }
-  #recBtn { font-size: 17px; padding: 14px 34px; border-radius: 999px; border: none; cursor: pointer;
-            background: var(--accent); color: #fff; }
-  #recBtn.recording { background: var(--bad); }
-  #recBtn:disabled { opacity: .5; cursor: wait; }
-  #reply { font-size: 16px; min-height: 44px; }
-  #transcript, .kv { color: var(--muted); font-size: 13px; }
-  .flag { padding: 8px 10px; border-radius: 8px; font-size: 13px; margin-top: 8px; }
-  .flag.ok { background: #e9f7ee; color: var(--good); }
-  .flag.bad { background: #fdeeee; color: var(--bad); }
-  pre { white-space: pre-wrap; font-size: 11.5px; line-height: 1.5; color: #494955;
-        max-height: 380px; overflow: auto; margin: 0; }
-  footer { padding: 8px 28px 20px; color: var(--muted); font-size: 12.5px; }
-  .pill { display: inline-block; background: #eef0fb; color: var(--accent); border-radius: 999px;
-          padding: 2px 10px; margin: 2px 4px 2px 0; font-size: 12px; }
-  ul { margin: 6px 0; padding-left: 18px; font-size: 13px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--body);
+    font-family: "Comic Neue", "Avenir Next", sans-serif; font-size: 16px; line-height: 1.5;
+  }
+  h1, h2, .sentence, .rec-btn { font-family: "Baloo 2", sans-serif; }
+
+  /* Soft floating background blobs */
+  .blob { position: fixed; border-radius: 50%; filter: blur(60px); opacity: .35; z-index: 0; pointer-events: none; }
+  .blob.b1 { width: 340px; height: 340px; background: #FDBA74; top: -120px; right: -80px; }
+  .blob.b2 { width: 280px; height: 280px; background: #BFDBFE; bottom: -100px; left: -70px; }
+
+  header {
+    position: relative; z-index: 1;
+    display: flex; align-items: center; gap: 12px; padding: 20px 28px 8px;
+  }
+  .logo {
+    width: 46px; height: 46px; border-radius: 16px; background: var(--primary);
+    box-shadow: var(--clay-shadow-sm); display: grid; place-items: center; color: #fff;
+  }
+  header h1 { margin: 0; font-size: 26px; color: var(--ink-strong); font-weight: 800; }
+  header p { margin: 0; font-size: 13.5px; color: var(--ink); opacity: .8; }
+  .reset-btn {
+    margin-left: auto; border: 2px solid var(--border); background: var(--card); color: var(--ink);
+    font-family: "Baloo 2", sans-serif; font-size: 13px; font-weight: 600;
+    padding: 8px 16px; border-radius: 999px; cursor: pointer; box-shadow: var(--clay-shadow-sm);
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .reset-btn:hover { transform: translateY(-1px); }
+  .reset-btn:active { transform: scale(.95); }
+
+  main {
+    position: relative; z-index: 1;
+    display: grid; grid-template-columns: 280px minmax(420px, 1fr) 300px;
+    gap: 18px; padding: 14px 24px 20px; align-items: start;
+  }
+  @media (max-width: 1080px) { main { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--card); border-radius: 28px; padding: 20px 22px;
+    box-shadow: var(--clay-shadow); border: 1px solid rgba(254, 215, 170, .6);
+  }
+  .card h2 {
+    display: flex; align-items: center; gap: 8px;
+    margin: 0 0 12px; font-size: 13px; font-weight: 700; letter-spacing: .06em;
+    text-transform: uppercase; color: var(--ink);
+  }
+  .card h2 svg { flex: none; }
+  .tier-tag {
+    margin-left: auto; font-size: 10.5px; background: var(--bg); color: var(--ink);
+    border-radius: 999px; padding: 2px 9px; border: 1px solid var(--border); letter-spacing: 0;
+  }
+
+  /* ---- Center stage ---- */
+  #stage { display: flex; flex-direction: column; gap: 18px; }
+  .sentence {
+    font-size: clamp(26px, 3.4vw, 38px); font-weight: 700; line-height: 1.5;
+    text-align: center; color: var(--ink-strong); padding: 18px 8px 6px; min-height: 76px;
+  }
+  .sentence .w-correct { color: var(--good); }
+  .sentence .w-missed { color: var(--bad); text-decoration: underline wavy; text-underline-offset: 6px; }
+  .sentence .w-near_miss { color: var(--warn); text-decoration: underline dotted; text-underline-offset: 6px; }
+  .sentence .w-substituted { color: var(--bad); }
+
+  .controls { display: flex; flex-direction: column; align-items: center; gap: 12px; padding-bottom: 8px; }
+  .rec-btn {
+    display: flex; align-items: center; gap: 12px;
+    font-size: 19px; font-weight: 700; color: var(--on-primary);
+    background: linear-gradient(180deg, #FB923C, var(--primary));
+    border: none; border-radius: 999px; padding: 18px 38px; min-height: 60px; cursor: pointer;
+    box-shadow: 0 10px 24px rgba(249, 115, 22, .35), inset 0 -5px 10px rgba(154, 52, 18, .25), inset 0 4px 8px rgba(255, 255, 255, .45);
+    transition: transform .15s cubic-bezier(.34, 1.56, .64, 1), box-shadow .2s ease;
+    -webkit-user-select: none; user-select: none; touch-action: none;
+  }
+  .rec-btn:hover { transform: translateY(-2px); }
+  .rec-btn:active, .rec-btn.recording { transform: scale(.94); }
+  .rec-btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+  .rec-btn.recording {
+    background: linear-gradient(180deg, #F87171, var(--bad));
+    box-shadow: 0 10px 24px rgba(220, 38, 38, .35), inset 0 -5px 10px rgba(120, 20, 20, .3);
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+  .rec-btn:disabled { opacity: .55; cursor: wait; animation: none; }
+  @keyframes pulse { 50% { box-shadow: 0 10px 40px rgba(220, 38, 38, .55), inset 0 -5px 10px rgba(120, 20, 20, .3); } }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+
+  .heard { font-size: 13.5px; color: var(--body); min-height: 20px; font-style: italic; }
+  .flag {
+    display: flex; align-items: center; gap: 8px;
+    border-radius: 16px; padding: 10px 16px; font-size: 14px; font-weight: 700;
+    box-shadow: var(--clay-shadow-sm);
+  }
+  .flag.ok { background: #ECFDF3; color: #15803D; border: 1px solid #BBF7D0; }
+  .flag.bad { background: #FEF2F2; color: var(--bad); border: 1px solid #FECACA; }
+
+  .reply-row { display: flex; gap: 14px; align-items: flex-start; }
+  .pal-face {
+    flex: none; width: 52px; height: 52px; border-radius: 20px;
+    background: linear-gradient(180deg, #FDBA74, var(--primary));
+    box-shadow: var(--clay-shadow-sm); display: grid; place-items: center;
+  }
+  .bubble {
+    flex: 1; background: var(--bg); border: 1.5px solid var(--border);
+    border-radius: 6px 22px 22px 22px; padding: 14px 18px;
+    font-size: 17px; color: var(--ink-strong); min-height: 52px;
+  }
+  .tools { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: #EFF6FF; color: var(--accent); border: 1px solid #BFDBFE;
+    border-radius: 999px; padding: 4px 12px; font-size: 12.5px; font-weight: 700;
+  }
+
+  pre.prompt {
+    white-space: pre-wrap; font-size: 11.5px; line-height: 1.55; color: #6B5B4E;
+    background: #FFFBF5; border: 1.5px dashed var(--border); border-radius: 16px;
+    padding: 12px 14px; max-height: 330px; overflow: auto; margin: 0;
+    font-family: "SF Mono", ui-monospace, Menlo, monospace;
+  }
+
+  /* ---- Side panels ---- */
+  .stat-row { display: flex; gap: 10px; margin-bottom: 12px; }
+  .stat {
+    flex: 1; text-align: center; background: var(--bg); border: 1.5px solid var(--border);
+    border-radius: 18px; padding: 10px 6px;
+  }
+  .stat b { display: block; font-family: "Baloo 2", sans-serif; font-size: 24px; color: var(--ink-strong); line-height: 1.1; }
+  .stat span { font-size: 11px; color: var(--ink); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+  .sound-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .sound-list li {
+    display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--ink-strong); font-weight: 700;
+  }
+  .sound-chip {
+    flex: none; width: 38px; height: 38px; border-radius: 14px; display: grid; place-items: center;
+    background: linear-gradient(180deg, #FDE68A, #FBBF24); color: #78350F;
+    font-family: "Baloo 2", sans-serif; font-size: 15px; box-shadow: var(--clay-shadow-sm);
+  }
+  .bar { flex: 1; height: 8px; border-radius: 999px; background: #FEF3C7; overflow: hidden; }
+  .bar i { display: block; height: 100%; border-radius: 999px; background: var(--warn); }
+  .muted { color: var(--body); font-size: 13.5px; }
+
+  .verdict { margin-top: 10px; }
+  .judge-row { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-top: 8px; color: var(--ink-strong); }
+  .judge-score {
+    flex: none; min-width: 44px; text-align: center; border-radius: 999px; padding: 3px 10px;
+    font-weight: 700; font-family: "Baloo 2", sans-serif; font-size: 13px;
+  }
+  .score-good { background: #ECFDF3; color: #15803D; }
+  .score-bad { background: #FEF2F2; color: var(--bad); }
+
+  footer {
+    position: relative; z-index: 1; display: flex; justify-content: center; gap: 10px;
+    padding: 4px 20px 26px; flex-wrap: wrap;
+  }
+  .lat {
+    background: var(--card); border: 1.5px solid var(--border); border-radius: 999px;
+    padding: 6px 16px; font-size: 12.5px; color: var(--ink); font-weight: 700;
+    box-shadow: var(--clay-shadow-sm);
+  }
+  .lat b { color: var(--ink-strong); }
 </style>
 </head>
 <body>
+<div class="blob b1"></div><div class="blob b2"></div>
+
 <header>
-  <h1>📖 StoryPal</h1>
-  <span>a reading companion that knows when not to trust its own ears</span>
-  <span style="margin-left:auto"><button onclick="resetAll()" style="font-size:12px">reset learner</button></span>
+  <div class="logo" aria-hidden="true">
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+  </div>
+  <div>
+    <h1>StoryPal</h1>
+    <p>a reading buddy that knows when not to trust its own ears</p>
+  </div>
+  <button class="reset-btn" onclick="resetAll()">Start over</button>
 </header>
+
 <main>
   <section class="card">
-    <h2>Learner profile · Tier 2</h2>
-    <div id="profile" class="kv">no history yet</div>
+    <h2>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      Learner <span class="tier-tag">tier 2 · memory</span>
+    </h2>
+    <div id="profile"><p class="muted">No history yet — read something!</p></div>
   </section>
 
   <section id="stage">
     <div class="card">
-      <div id="sentence">…</div>
-      <div id="controls">
-        <button id="recBtn">🎤 Hold to read</button>
-        <div id="transcript"></div>
+      <div class="sentence" id="sentence" aria-live="polite">…</div>
+      <div class="controls">
+        <button id="recBtn" class="rec-btn" aria-label="Hold to record your reading">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+          <span id="recLabel">Hold to read</span>
+        </button>
+        <div class="heard" id="transcript"></div>
         <div id="asrFlag"></div>
       </div>
     </div>
+
     <div class="card">
-      <h2>StoryPal says</h2>
-      <div id="reply">Press and hold the button, then read the sentence out loud!</div>
-      <div id="tools"></div>
+      <h2>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        StoryPal says
+      </h2>
+      <div class="reply-row">
+        <div class="pal-face" aria-hidden="true">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="10" r="1.3" fill="#fff"/><circle cx="15" cy="10" r="1.3" fill="#fff"/><path d="M8.5 14.5c1 1.2 2.2 1.8 3.5 1.8s2.5-.6 3.5-1.8"/></svg>
+        </div>
+        <div>
+          <div class="bubble" id="reply">Press and hold the big orange button, then read the sentence out loud!</div>
+          <div class="tools" id="tools"></div>
+        </div>
+      </div>
     </div>
+
     <div class="card">
-      <h2>This turn's prompt · Tier 1 (live)</h2>
-      <pre id="prompt">—</pre>
+      <h2>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        This turn's instructions <span class="tier-tag">tier 1 · live</span>
+      </h2>
+      <pre class="prompt" id="prompt">The exact prompt driving the tutor appears here after each turn — watch it change when recognition fails.</pre>
     </div>
   </section>
 
   <section class="card">
-    <h2>Curated data · Tier 3</h2>
-    <div id="curated" class="kv">nothing yet</div>
+    <h2>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>
+      Training data <span class="tier-tag">tier 3 · curated</span>
+    </h2>
+    <div id="curated"><p class="muted">Turns worth learning from will pile up here.</p></div>
   </section>
 </main>
+
 <footer id="latency"></footer>
 <script src="/web/app.js"></script>
 </body>
