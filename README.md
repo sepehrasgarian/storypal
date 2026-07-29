@@ -7,6 +7,15 @@ adapt to a child immediately and improve itself over time.
 **The design question this project answers: when an agent's own perception is
 unreliable, how should the system behave, and how does it learn from that?**
 
+![StoryPal detecting that it misheard a child](docs/demo.gif)
+
+*The moment the whole architecture exists for. The recogniser returned a
+transcript it was not confident in, so the trust check fails, the reading
+score is discarded, the turn is routed for human review, and the child simply
+hears "let's try reading that sentence one more time". Nothing is written to
+their record and the sentence does not advance, because the system does not
+know what they said.*
+
 ## Why reading practice
 
 Most conversational agents cannot be scored objectively, because there is no
