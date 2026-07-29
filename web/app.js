@@ -174,6 +174,9 @@ function render(turn) {
   }
   $("transcript").textContent = 'I heard: "' + turn.transcript + '"';
 
+  lastSignals = turn.signals;
+  renderSignals(null); // S1/S2 now; S3/S4 fill in when the judges finish
+
   const s2 = turn.signals.S2;
   $("asrFlag").innerHTML = s2.reliable
     ? '<div class="flag ok">' + ICONS.ok + " ears trusted — " + esc(s2.reasons[0]) + "</div>"
@@ -219,44 +222,80 @@ function showSentence(text, assessment) {
   $("legend").hidden = !graded;
 }
 
+// --- Instrument panels -------------------------------------------------
+
+let lastSignals = null; // S1/S2 from the turn; S3/S4 arrive with the judges
+
+function metric(value, label) {
+  return '<div class="metric"><b>' + value + "</b><span>" + label + "</span></div>";
+}
+
+function signalRow(name, valueText, state, reason) {
+  return (
+    '<div class="row"><span class="dot ' + state + '"></span>' +
+    '<span class="k">' + name + "</span>" +
+    '<span class="v">' + valueText + "</span>" +
+    (reason ? '<div class="sig-reason">' + esc(reason) + "</div>" : "") +
+    "</div>"
+  );
+}
+
+function renderSignals(judgment) {
+  if (!lastSignals) return;
+  const s1 = lastSignals.S1, s2 = lastSignals.S2;
+  let html = '<div class="rows">';
+  html += signalRow("S1 · reading", Math.round(s1.score * 100) + "%",
+                    s1.score >= 0.99 ? "good" : s1.score > 0 ? "info" : "bad", s1.reasons[0]);
+  html += signalRow("S2 · ears", s2.reliable ? "trusted" : "not trusted",
+                    s2.reliable ? "good" : "bad", s2.reasons.join("; "));
+  if (judgment && judgment.S3) {
+    html += signalRow("S3 · grounded", judgment.S3.score.toFixed(1),
+                      judgment.S3.score >= 0.5 ? "good" : "bad", judgment.S3.reason);
+    html += signalRow("S4 · teaching", judgment.S4.score.toFixed(1),
+                      judgment.S4.score >= 0.5 ? "good" : "bad", judgment.S4.reason);
+  } else {
+    html += signalRow("S3 · grounded", "judging…", "");
+    html += signalRow("S4 · teaching", "judging…", "");
+  }
+  html += "</div>";
+  if (judgment && judgment.route) {
+    const flagged = judgment.route !== "archive";
+    html += '<div class="route-line ' + (flagged ? "route-flag" : "route-archive") + '">' +
+            (flagged ? ICONS.warn : ICONS.ok) + " routed → " + esc(judgment.route) + "</div>";
+  }
+  $("signals").innerHTML = html;
+}
+
 async function refreshPanels() {
   const profile = await getJSON("/api/profile");
   const sounds = Object.entries(profile.weak_phonemes || {}).sort((a, b) => b[1] - a[1]);
   const maxMisses = sounds.length ? sounds[0][1] : 1;
-  let html =
-    '<div class="stat-row">' +
-    '<div class="stat"><b>' + profile.level + "</b><span>level</span></div>" +
-    '<div class="stat"><b>' + profile.total_turns + "</b><span>turns</span></div>" +
-    "</div>";
+  let html = '<div class="metrics">' + metric(profile.level, "level") +
+             metric(profile.total_turns, "graded turns") + "</div>";
   if (sounds.length) {
-    html += '<ul class="sound-list">' + sounds.map(([p, n]) =>
-      '<li><span class="sound-chip">' + esc(p) + '</span><span class="bar"><i style="width:' +
-      Math.round((n / maxMisses) * 100) + '%"></i></span>' + n + "</li>").join("") + "</ul>";
+    html += '<div class="rows">' + sounds.slice(0, 5).map(([p, n]) =>
+      '<div class="row"><span class="k">/' + esc(p) + '/</span>' +
+      '<span class="track"><i class="warnfill" style="width:' +
+      Math.round((n / maxMisses) * 100) + '%"></i></span>' +
+      '<span class="v">' + n + "</span></div>").join("") + "</div>";
   } else {
-    html += '<p class="muted">No tricky sounds recorded yet.</p>';
+    html += '<p class="muted">No weak sounds recorded yet.</p>';
+  }
+  const words = Object.entries(profile.missed_words || {}).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  if (words.length) {
+    html += '<h2 style="margin:16px 0 6px">Hardest words</h2><div class="wordchips">' +
+            words.map(([w, n]) => "<span>" + esc(w) + " · " + n + "</span>").join("") + "</div>";
   }
   $("profile").innerHTML = html;
 
   const curated = await getJSON("/api/curated");
   const piles = curated.piles;
-  let cur =
-    '<div class="stat-row">' +
-    '<div class="stat"><b>' + piles.review_queue.count + "</b><span>review</span></div>" +
-    '<div class="stat"><b>' + piles.finetune_set.count + "</b><span>finetune</span></div>" +
-    "</div>";
-  if (curated.last_judgment && curated.last_judgment.route) {
-    const j = curated.last_judgment;
-    cur += '<div class="verdict"><div class="flag ' + (j.route === "archive" ? "ok" : "bad") + '">' +
-           (j.route === "archive" ? ICONS.ok : ICONS.warn) + " last turn → " + esc(j.route) + "</div>" +
-           judgeRow("S3 grounded", j.S3) + judgeRow("S4 kind & on-target", j.S4) + "</div>";
-  }
-  $("curated").innerHTML = cur;
-}
+  $("curated").innerHTML =
+    '<div class="metrics">' + metric(piles.review_queue.count, "review queue") +
+    metric(piles.finetune_set.count, "finetune set") + "</div>" +
+    '<p class="muted">Review holds turns we could not trust. Finetune holds replies the judges faulted — each with context and a slot for a corrected reply.</p>';
 
-function judgeRow(label, judge) {
-  const cls = judge.score >= 0.5 ? "score-good" : "score-bad";
-  return '<div class="judge-row"><span class="judge-score ' + cls + '">' + judge.score.toFixed(1) +
-         "</span>" + esc(label) + '<span class="muted" style="font-size:11.5px"> — ' + esc(judge.reason) + "</span></div>";
+  renderSignals(curated.last_judgment);
 }
 
 async function resetAll() {

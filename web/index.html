@@ -186,35 +186,72 @@
     font-family: "SF Mono", ui-monospace, Menlo, monospace;
   }
 
-  /* ---- Side panels ---- */
-  .stat-row { display: flex; gap: 10px; margin-bottom: 12px; }
-  .stat {
-    flex: 1; text-align: center; background: var(--bg); border: 1.5px solid var(--border);
-    border-radius: 18px; padding: 10px 6px;
+  /* ---- Side panels: instrument console ----
+     The centre stage is a toy for the child; the side panels are the
+     engineer's console. Cool neutrals, tabular numerals, semantic
+     green/blue accents - deliberately a different visual register. */
+  :root {
+    --slate-bg: #FBFCFD; --slate-line: #E8EAEE; --slate-ink: #1E293B;
+    --slate-muted: #7B8794; --sig-good: #059669; --sig-bad: #DC2626;
+    --sig-info: #2563EB; --sig-idle: #C3C9D2;
   }
-  .stat b { display: block; font-family: "Baloo 2", sans-serif; font-size: 24px; color: var(--ink-strong); line-height: 1.1; }
-  .stat span { font-size: 11px; color: var(--ink); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
-  .sound-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-  .sound-list li {
-    display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--ink-strong); font-weight: 700;
+  .panel {
+    background: var(--slate-bg); border: 1px solid var(--slate-line); border-radius: 16px;
+    padding: 16px 18px; box-shadow: 0 1px 2px rgba(16,24,40,.04);
+    font-family: system-ui, -apple-system, sans-serif;
   }
-  .sound-chip {
-    flex: none; width: 38px; height: 38px; border-radius: 14px; display: grid; place-items: center;
-    background: linear-gradient(180deg, #FDE68A, #FBBF24); color: #78350F;
-    font-family: "Baloo 2", sans-serif; font-size: 15px; box-shadow: var(--clay-shadow-sm);
+  .panel h2 {
+    display: flex; align-items: center; gap: 7px; margin: 0 0 14px;
+    font-family: system-ui, sans-serif; font-size: 10.5px; font-weight: 600;
+    letter-spacing: .13em; text-transform: uppercase; color: var(--slate-muted);
   }
-  .bar { flex: 1; height: 8px; border-radius: 999px; background: #FEF3C7; overflow: hidden; }
-  .bar i { display: block; height: 100%; border-radius: 999px; background: var(--warn); }
-  .muted { color: var(--body); font-size: 13.5px; }
+  .panel h2 .tier-tag {
+    margin-left: auto; background: #EEF2F7; border: 1px solid var(--slate-line);
+    color: var(--slate-muted); border-radius: 5px; padding: 2px 7px;
+    font-size: 9.5px; letter-spacing: .06em;
+  }
+  .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--slate-line);
+             border: 1px solid var(--slate-line); border-radius: 10px; overflow: hidden; margin-bottom: 16px; }
+  .metric { background: #fff; padding: 11px 12px; }
+  .metric b {
+    display: block; font-size: 25px; font-weight: 600; line-height: 1.15; color: var(--slate-ink);
+    font-variant-numeric: tabular-nums; letter-spacing: -.02em;
+  }
+  .metric span { font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--slate-muted); }
 
-  .verdict { margin-top: 10px; }
-  .judge-row { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-top: 8px; color: var(--ink-strong); }
-  .judge-score {
-    flex: none; min-width: 44px; text-align: center; border-radius: 999px; padding: 3px 10px;
-    font-weight: 700; font-family: "Baloo 2", sans-serif; font-size: 13px;
+  .rows { display: flex; flex-direction: column; }
+  .row {
+    display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center;
+    padding: 9px 0; border-top: 1px solid var(--slate-line); font-size: 13px; color: var(--slate-ink);
   }
-  .score-good { background: #ECFDF3; color: #15803D; }
-  .score-bad { background: #FEF2F2; color: var(--bad); }
+  .row:first-child { border-top: none; }
+  .row .k { font-weight: 600; }
+  .row .v { font-variant-numeric: tabular-nums; color: var(--slate-muted); font-size: 12.5px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--sig-idle); flex: none; }
+  .dot.good { background: var(--sig-good); } .dot.bad { background: var(--sig-bad); }
+  .dot.info { background: var(--sig-info); }
+
+  .track { height: 4px; border-radius: 2px; background: #EDF0F4; overflow: hidden; }
+  .track i { display: block; height: 100%; border-radius: 2px; background: var(--sig-info); }
+  .track i.warnfill { background: #F59E0B; }
+
+  .sig-reason {
+    grid-column: 1 / -1; font-size: 11.5px; color: var(--slate-muted); line-height: 1.45;
+    margin-top: -2px; padding-left: 17px;
+  }
+  .route-line {
+    display: flex; align-items: center; gap: 8px; margin-top: 14px; padding: 9px 11px;
+    border-radius: 9px; font-size: 12px; font-weight: 600; letter-spacing: .02em;
+  }
+  .route-archive { background: #ECFDF5; color: #047857; border: 1px solid #A7F3D0; }
+  .route-flag { background: #FEF2F2; color: #B91C1C; border: 1px solid #FECACA; }
+  .wordchips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
+  .wordchips span {
+    background: #fff; border: 1px solid var(--slate-line); border-radius: 5px;
+    padding: 2px 7px; font-size: 11.5px; color: var(--slate-ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .muted { color: var(--slate-muted); font-size: 12.5px; }
 
   .welcome-overlay {
     position: fixed; inset: 0; z-index: 10; display: grid; place-items: center;
@@ -291,12 +328,12 @@
 </header>
 
 <main>
-  <section class="card">
+  <section class="panel">
     <h2>
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-      Learner <span class="tier-tag">tier 2 · memory</span>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      Learner <span class="tier-tag">tier 2</span>
     </h2>
-    <div id="profile"><p class="muted">No history yet — read something!</p></div>
+    <div id="profile"><p class="muted">No history yet.</p></div>
   </section>
 
   <section id="stage">
@@ -350,13 +387,23 @@
     </div>
   </section>
 
-  <section class="card">
-    <h2>
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>
-      Training data <span class="tier-tag">tier 3 · curated</span>
-    </h2>
-    <div id="curated"><p class="muted">Turns worth learning from will pile up here.</p></div>
-  </section>
+  <div style="display:flex; flex-direction:column; gap:16px">
+    <section class="panel">
+      <h2>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>
+        Signals <span class="tier-tag">this turn</span>
+      </h2>
+      <div id="signals"><p class="muted">Waiting for the first reading.</p></div>
+    </section>
+
+    <section class="panel">
+      <h2>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>
+        Curated data <span class="tier-tag">tier 3</span>
+      </h2>
+      <div id="curated"><p class="muted">Turns worth learning from collect here.</p></div>
+    </section>
+  </div>
 </main>
 
 <footer id="latency"></footer>
