@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StoryPal</title>
+<style>
+  :root {
+    --bg: #faf7f2; --card: #ffffff; --ink: #2b2b33; --muted: #7a7a85;
+    --accent: #5b6ee1; --good: #2e9e5b; --bad: #d64545; --warn: #d69a2e;
+    --border: #e7e2d8;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Avenir Next", "Segoe UI", sans-serif; background: var(--bg); color: var(--ink); }
+  header { padding: 18px 28px; display: flex; align-items: baseline; gap: 14px; }
+  header h1 { margin: 0; font-size: 22px; }
+  header span { color: var(--muted); font-size: 13px; }
+  main { display: grid; grid-template-columns: 260px 1fr 300px; gap: 16px; padding: 0 24px 24px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  .card h2 { margin: 0 0 10px; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+  #stage { display: flex; flex-direction: column; gap: 16px; }
+  #sentence { font-size: 30px; line-height: 1.45; text-align: center; padding: 26px 12px; }
+  #sentence .w-correct { color: var(--good); }
+  #sentence .w-missed { color: var(--bad); text-decoration: underline wavy; }
+  #sentence .w-near_miss { color: var(--warn); text-decoration: underline dotted; }
+  #sentence .w-substituted { color: var(--bad); }
+  #controls { text-align: center; }
+  #recBtn { font-size: 17px; padding: 14px 34px; border-radius: 999px; border: none; cursor: pointer;
+            background: var(--accent); color: #fff; }
+  #recBtn.recording { background: var(--bad); }
+  #recBtn:disabled { opacity: .5; cursor: wait; }
+  #reply { font-size: 16px; min-height: 44px; }
+  #transcript, .kv { color: var(--muted); font-size: 13px; }
+  .flag { padding: 8px 10px; border-radius: 8px; font-size: 13px; margin-top: 8px; }
+  .flag.ok { background: #e9f7ee; color: var(--good); }
+  .flag.bad { background: #fdeeee; color: var(--bad); }
+  pre { white-space: pre-wrap; font-size: 11.5px; line-height: 1.5; color: #494955;
+        max-height: 380px; overflow: auto; margin: 0; }
+  footer { padding: 8px 28px 20px; color: var(--muted); font-size: 12.5px; }
+  .pill { display: inline-block; background: #eef0fb; color: var(--accent); border-radius: 999px;
+          padding: 2px 10px; margin: 2px 4px 2px 0; font-size: 12px; }
+  ul { margin: 6px 0; padding-left: 18px; font-size: 13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>📖 StoryPal</h1>
+  <span>a reading companion that knows when not to trust its own ears</span>
+  <span style="margin-left:auto"><button onclick="resetAll()" style="font-size:12px">reset learner</button></span>
+</header>
+<main>
+  <section class="card">
+    <h2>Learner profile · Tier 2</h2>
+    <div id="profile" class="kv">no history yet</div>
+  </section>
+
+  <section id="stage">
+    <div class="card">
+      <div id="sentence">…</div>
+      <div id="controls">
+        <button id="recBtn">🎤 Hold to read</button>
+        <div id="transcript"></div>
+        <div id="asrFlag"></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>StoryPal says</h2>
+      <div id="reply">Press and hold the button, then read the sentence out loud!</div>
+      <div id="tools"></div>
+    </div>
+    <div class="card">
+      <h2>This turn's prompt · Tier 1 (live)</h2>
+      <pre id="prompt">—</pre>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Curated data · Tier 3</h2>
+    <div id="curated" class="kv">nothing yet</div>
+  </section>
+</main>
+<footer id="latency"></footer>
+<script src="/web/app.js"></script>
+</body>
+</html>
