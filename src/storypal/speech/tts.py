@@ -23,7 +23,10 @@ STYLE_TAGS = {
     "neutral": "",
 }
 
-DEFAULT_VOICE = os.getenv("TTS_VOICE", "alloy")
+# Must be one of Higgs TTS 3's preset voices (chloe, eleanor, jake,
+# marcus, nora, oliver). An unknown name silently samples a *random*
+# speaker on every request — the voice would change turn to turn.
+DEFAULT_VOICE = os.getenv("TTS_VOICE", "chloe")
 
 
 def choose_style(s1_score: float, s2_reliable: bool) -> str:

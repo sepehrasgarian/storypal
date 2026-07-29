@@ -99,6 +99,23 @@ class TestHallucinatedTurn:
         assert curated["piles"]["finetune_set"]["count"] == 0
 
 
+class TestUndecodableAudio:
+    def test_broken_audio_becomes_gentle_reask_not_500(self, env):
+        # A too-short press sends an empty webm; decoding fails. That is
+        # unreliable perception, not a server error.
+        class ExplodingASR:
+            def transcribe(self, path):
+                raise RuntimeError("EOF: empty container")
+
+        env["app"].state.services.asr = ExplodingASR()
+        response = post_turn(env)
+        assert response.status_code == 200
+        body = response.json()
+        assert body["transcript"] == ""
+        assert body["signals"]["S2"]["reliable"] is False
+        assert "do NOT correct" in body["prompt"]
+
+
 class TestReset:
     def test_reset_clears_session(self, env):
         post_turn(env)

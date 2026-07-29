@@ -105,6 +105,15 @@ def create_app(services: Services | None = None) -> FastAPI:
             audio_path = f.name
         try:
             asr_result = timed("asr_ms", lambda: svc.asr.transcribe(audio_path))
+        except Exception:
+            # Empty or undecodable audio is just another form of unreliable
+            # perception: treat it as certain silence and let the normal
+            # S2 path produce the gentle "read it once more" behaviour.
+            from storypal.speech.asr import TranscriptionResult
+            from storypal.core.signals import AsrTelemetry
+
+            timings.setdefault("asr_ms", 0)
+            asr_result = TranscriptionResult("", AsrTelemetry(no_speech_prob=1.0))
         finally:
             os.unlink(audio_path)
 
