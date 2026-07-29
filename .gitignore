@@ -2,7 +2,13 @@
 __pycache__/
 *.pyc
 .venv/
-data/profile.json
-data/curated/
+
+# Runtime state and generated media. None of it belongs in the repo:
+# the profile is one child's private record, the trajectory log and
+# curated piles are session output, and the caches are regenerated on
+# demand from the APIs.
+data/
+
 *.wav
 *.webm
+*.mp3
