@@ -157,6 +157,49 @@ distinguish homophones and should not try, because the child pronounced the
 word correctly. The fabricated transcript suites could never have surfaced
 that distinction, because they never produce sound.
 
+## API design
+
+The interface is deliberately small. One endpoint carries the whole
+conversation, a few carry session control, and the rest exist to make the
+system's reasoning inspectable from outside.
+
+**`POST /api/turn`** is the only endpoint that matters. It accepts an audio
+recording and the sentence the child was asked to read, and returns
+everything about that turn in a single response: the transcript, the word by
+word assessment, every signal with its reasons, the tutor's reply, a URL for
+the spoken audio, any tools the agent called, the next sentence, the exact
+prompt used, the chosen delivery style and the per stage timings. One request
+and one response per spoken turn, with no polling for the reply and no socket
+to manage.
+
+Returning the prompt and the signals alongside the reply is the important
+choice. A conventional design would return only the reply and keep the
+reasoning server side. Exposing it makes the interface self describing: the
+page renders the decision chain without needing a parallel debug channel, and
+anyone reading the response can see exactly why the tutor said what it said.
+
+**Session control** is three endpoints, each doing one thing.
+`POST /api/greet` returns the spoken welcome, which differs for a new and a
+returning learner. `POST /api/warmup` accepts a recording of the child saying
+hello and confirms whether the microphone is working, grading nothing and
+touching no memory. `POST /api/next` skips to another sentence, and
+`POST /api/reset` clears the learner and starts over.
+
+**Inspection** is three read only endpoints that exist for the same reason as
+the fields above. `GET /api/profile` returns the accumulated learner memory,
+`GET /api/curated` returns the training data piles and the most recent judge
+verdicts, and `GET /api/prompt` returns the exact prompt used on the last
+turn. That last one is the transparency claim made concrete: the adaptation
+can be observed rather than asserted.
+
+Two design decisions are worth naming. The **judges run in a background task**
+rather than inside the request, so `POST /api/turn` returns as soon as the
+child's audio is ready, and the verdict is collected afterwards through
+`GET /api/curated`. Verdicts carry the turn number they belong to, so a caller
+can tell a fresh verdict from a stale one. And **the server holds session
+state**, since a reading session is inherently stateful and the client should
+not be trusted to report what a child was asked to read.
+
 ## Project layout
 
 ```
