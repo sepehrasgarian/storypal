@@ -17,25 +17,19 @@ from fastapi import BackgroundTasks, FastAPI, File, Form, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from storypal.learning import profile as profile_mod
-from storypal.agent.loop import run_turn
-from storypal.core.assessment import assess
-from storypal.config import (
-    AUTO_ADVANCE_ACCURACY, DATA_DIR, DRILL_FULL_MISMATCH, DRILL_MATCH_ACCURACY,
-    PROFILE_PATH, STORIES, TRAJECTORY_PATH,
-)
-from storypal.core.assessment import WordStatus, is_conversational
-from storypal.core.signals import Signal
-from storypal.learning.curated import CuratedStore
+from storypal import observability
 from storypal.agent.judges import s3_grounding, s4_pedagogy
-from storypal.learning.kb import TacticStats
-from storypal.learning.prompt import build_prompt
-from storypal.core.signals import s1_reading_accuracy, s2_asr_reliability
+from storypal.agent.loop import run_turn
 from storypal.agent.tools import ToolContext
+from storypal.config import DATA_DIR, PROFILE_PATH, STORIES, TRAJECTORY_PATH
 from storypal.core.trajectory import TrajectoryLog, TurnRecord, reward_from_signals
 from storypal.core.triage import route_turn
+from storypal.learning import profile as profile_mod
+from storypal.learning.curated import CuratedStore
+from storypal.learning.kb import TacticStats
+from storypal.learning.prompt import build_prompt
+from storypal.session import grade_turn, update_expectations
 from storypal.speech.tts import choose_style
-from storypal import observability
 
 load_dotenv()
 
@@ -209,53 +203,27 @@ def create_app(services: Services | None = None) -> FastAPI:
         finally:
             os.unlink(audio_path)
 
-        assessment = assess(target, asr_result.transcript)
-        graded_target = target
-
-        # The child talking TO the tutor ("Yes, I do!") is conversation,
-        # not a failed reading - answer it, never grade it.
-        chat_turn = is_conversational(asr_result.transcript, assessment)
-
-        # Drill follow-up: after a flawed read the child often repeats
-        # just the practiced word. If the recording matches those words
-        # but not the sentence, grade the drill - not the sentence.
-        drill_words = None
-        if not chat_turn and state.pending_drill and assessment.accuracy < DRILL_FULL_MISMATCH:
-            mini_target = " ".join(state.pending_drill)
-            mini = assess(mini_target, asr_result.transcript)
-            if mini.accuracy >= DRILL_MATCH_ACCURACY:
-                drill_words = list(state.pending_drill)
-                assessment = mini
-                graded_target = mini_target
-
-        if chat_turn:
-            s1 = Signal(
-                id="S1", score=assessment.accuracy, reliable=True,
-                reasons=("conversational reply, not a reading attempt - not graded",),
-            )
-        else:
-            s1 = s1_reading_accuracy(assessment)
-        s2 = s2_asr_reliability(asr_result.telemetry, assessment)
+        graded = grade_turn(
+            target, asr_result.transcript, asr_result.telemetry, state.pending_drill
+        )
+        s1, s2, assessment = graded.s1, graded.s2, graded.assessment
 
         # Tier 2: unreliable turns never touch memory, and conversation
-        # is not evidence of reading ability. In drill mode the mini
-        # assessment only covers the practiced words, so sentence words
-        # the child was not asked to say cannot be logged as misses.
-        if not chat_turn:
+        # is not evidence of reading ability.
+        if not graded.chat_turn:
             profile_mod.update_from_turn(state.profile, assessment, s2)
             profile_mod.save(state.profile, PROFILE_PATH)
 
         # Strategy KB: a drill response is the outcome signal for the
         # tactic that was used to teach it.
-        drill_worked = drill_words is not None and s1.score >= DRILL_MATCH_ACCURACY
-        if drill_words is not None and s2.reliable and state.last_tactic is not None:
-            state.tactic_stats.record_outcome(state.last_tactic, worked=drill_worked)
+        if graded.drill_words is not None and s2.reliable and state.last_tactic is not None:
+            state.tactic_stats.record_outcome(state.last_tactic, worked=graded.drill_worked)
             state.last_tactic = None
 
         # Tier 1: instructions rebuilt from this turn's state.
         system_prompt = build_prompt(
             target, assessment, s1, s2, state.profile,
-            drill_words=drill_words, conversational=chat_turn,
+            drill_words=graded.drill_words, conversational=graded.chat_turn,
         )
         state.last_prompt = system_prompt
 
@@ -274,22 +242,12 @@ def create_app(services: Services | None = None) -> FastAPI:
 
         if ctx.next_story:
             state.target = ctx.next_story  # the agent chose the next sentence
-        elif not chat_turn and drill_words is None and s2.reliable and s1.score >= AUTO_ADVANCE_ACCURACY:
+        elif graded.accepted:
             _advance_target()  # accepted full read: move on automatically
 
-        # Remember what to expect next turn: a flawed but trusted full
-        # read sets up a drill; a successful drill clears it. Chat turns
-        # change nothing - the child still owes the same reading.
-        if s2.reliable and not chat_turn:
-            if drill_words is None and 0 < s1.score < AUTO_ADVANCE_ACCURACY:
-                state.pending_drill = [
-                    v.target_word for v in assessment.verdicts
-                    if v.status in (WordStatus.MISSED, WordStatus.NEAR_MISS, WordStatus.SUBSTITUTED)
-                ] or None
-                state.last_tactic = ctx.tactic_used
-            elif drill_worked or (drill_words is None and s1.score >= AUTO_ADVANCE_ACCURACY):
-                state.pending_drill = None
-                state.last_tactic = None
+        state.pending_drill, state.last_tactic = update_expectations(
+            graded, ctx.tactic_used, state.pending_drill, state.last_tactic
+        )
 
         state.turn_count += 1
         signals = {"S1": s1, "S2": s2}
@@ -309,8 +267,8 @@ def create_app(services: Services | None = None) -> FastAPI:
 
         return {
             "transcript": asr_result.transcript,
-            "graded_target": graded_target,  # differs from target in drill mode
-            "drill_words": drill_words,
+            "graded_target": graded.graded_target,  # differs from target in drill mode
+            "drill_words": graded.drill_words,
             "assessment": [asdict(v) | {"status": v.status.value} for v in assessment.verdicts],
             "signals": {k: asdict(v) for k, v in signals.items()},
             "reply": result.reply,
