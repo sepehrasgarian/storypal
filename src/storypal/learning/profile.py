@@ -38,24 +38,30 @@ def miss_rate(misses: int, attempts: int) -> float:
     return misses / (attempts + SMOOTHING)
 
 
-def ranked_phonemes(profile: Profile) -> list[tuple[str, float, int, int]]:
-    """(phoneme, rate, misses, attempts), hardest first."""
+def _opportunities(misses: int, attempts: dict, key: str) -> int:
+    """Attempts can never be fewer than misses. A profile written before
+    attempts were tracked has the misses but not the denominator, which
+    would otherwise render as "missed 12 of 4"."""
+    return max(attempts.get(key, 0), misses)
+
+
+def _rank(counts: dict, attempts: dict) -> list[tuple[str, float, int, int]]:
     rows = [
-        (p, miss_rate(n, profile.phoneme_attempts.get(p, n)), n,
-         profile.phoneme_attempts.get(p, n))
-        for p, n in profile.weak_phonemes.items()
+        (key, miss_rate(n, _opportunities(n, attempts, key)), n,
+         _opportunities(n, attempts, key))
+        for key, n in counts.items()
     ]
     return sorted(rows, key=lambda r: -r[1])
+
+
+def ranked_phonemes(profile: Profile) -> list[tuple[str, float, int, int]]:
+    """(phoneme, rate, misses, attempts), hardest first."""
+    return _rank(profile.weak_phonemes, profile.phoneme_attempts)
 
 
 def ranked_words(profile: Profile) -> list[tuple[str, float, int, int]]:
     """(word, rate, misses, attempts), hardest first."""
-    rows = [
-        (w, miss_rate(n, profile.word_attempts.get(w, n)), n,
-         profile.word_attempts.get(w, n))
-        for w, n in profile.missed_words.items()
-    ]
-    return sorted(rows, key=lambda r: -r[1])
+    return _rank(profile.missed_words, profile.word_attempts)
 
 
 def update_from_turn(profile: Profile, assessment: Assessment, s2: Signal) -> Profile:

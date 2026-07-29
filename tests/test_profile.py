@@ -114,3 +114,12 @@ class TestExposureNormalisation:
             weak_phonemes={"th": 3}, phoneme_attempts={"th": 4},
         )
         assert "missed 3 of 4" in render(profile)
+
+    def test_legacy_profile_without_attempts_cannot_render_impossible_ratios(self):
+        # Profiles written before attempts were tracked have the misses
+        # but no denominator, which produced "missed 12 of 4".
+        from storypal.learning.profile import ranked_phonemes
+        profile = Profile(weak_phonemes={"d": 12}, phoneme_attempts={"d": 4})
+        _, rate, misses, attempts = ranked_phonemes(profile)[0]
+        assert attempts >= misses
+        assert rate <= 1.0

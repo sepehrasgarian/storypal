@@ -380,7 +380,9 @@ const SMOOTHING = 2;
 const rank = (counts, attempts) =>
   Object.entries(counts || {})
     .map(([key, misses]) => {
-      const tries = (attempts || {})[key] || misses;
+      // Attempts can never be fewer than misses; a profile written
+      // before attempts were tracked has only the numerator.
+      const tries = Math.max((attempts || {})[key] || 0, misses);
       return { key, misses, tries, rate: misses / (tries + SMOOTHING) };
     })
     .sort((a, b) => b.rate - a.rate);
