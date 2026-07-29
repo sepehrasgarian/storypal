@@ -123,8 +123,12 @@ python3.12 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 brew install ffmpeg          # Whisper needs it to decode browser audio
 cp .env.example .env         # then fill in your API keys
-uvicorn storypal.api.main:app --reload
+./run.sh                     # starts uvicorn on http://127.0.0.1:8000
 ```
+
+Note: `run.sh` sets `PYTHONPATH=src` instead of relying on the venv's
+`.pth` files — iCloud sync in `~/Documents` flags those files as
+hidden, and Python ≥ 3.12.10 skips hidden `.pth` files.
 
 Run tests and the eval report:
 
