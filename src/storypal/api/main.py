@@ -8,6 +8,7 @@ triage -> curated piles. Per-stage timings are measured and returned.
 import os
 import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from tempfile import NamedTemporaryFile
@@ -350,8 +351,12 @@ def _post_loop(state, svc, s1, s2, reply, record: TurnRecord, timings: dict,
                chat_turn: bool = False) -> None:
     """S3/S4 judges + triage + observability. Runs after the response is sent."""
     summary = "; ".join(s1.reasons) + f" (accuracy {s1.score:.0%}; ASR {'ok' if s2.reliable else 'UNRELIABLE'})"
-    s3 = s3_grounding(summary, reply, svc.judge_llm)
-    s4 = s4_pedagogy(summary, reply, svc.judge_llm)
+    # The judges are independent, so run them together rather than one
+    # after the other: the verdict is what the panel waits on.
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        grounding = pool.submit(s3_grounding, summary, reply, svc.judge_llm)
+        pedagogy = pool.submit(s4_pedagogy, summary, reply, svc.judge_llm)
+        s3, s4 = grounding.result(), pedagogy.result()
     signals = {"S1": s1, "S2": s2, "S3": s3, "S4": s4}
     decision = route_turn(signals, chat_turn=chat_turn)
     if state.exporter is not None:

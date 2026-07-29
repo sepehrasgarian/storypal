@@ -52,14 +52,24 @@ class FakeLLM:
 
 class GeminiLLM:
     """Google Gemini via the google-genai SDK. Imported lazily so the
-    package is only required when this provider is actually used."""
+    package is only required when this provider is actually used.
 
-    def __init__(self, model: str = LLM_MODEL, api_key: str | None = None):
+    Thinking is disabled by default. Gemini 2.5 models reason before
+    answering unless told otherwise, which measured at 4.8 seconds per
+    call against 1.0 second with it off. Neither job here needs it: the
+    tutor writes two warm sentences to a child, and the judges score
+    against a short rubric. A child waiting five seconds for praise is a
+    worse outcome than any gain in phrasing.
+    """
+
+    def __init__(self, model: str = LLM_MODEL, api_key: str | None = None,
+                 thinking_budget: int = 0):
         from google import genai  # lazy: keeps tests dependency-free
 
         self._genai = genai
         self._client = genai.Client(api_key=api_key or os.environ["GEMINI_API_KEY"])
         self._model = model
+        self._thinking_budget = thinking_budget
 
     def chat(self, system: str, messages: list[Message], tools: list[dict]) -> LLMReply:
         from google.genai import types
@@ -67,6 +77,7 @@ class GeminiLLM:
         config = types.GenerateContentConfig(
             system_instruction=system,
             tools=[types.Tool(function_declarations=tools)] if tools else None,
+            thinking_config=types.ThinkingConfig(thinking_budget=self._thinking_budget),
         )
         contents = [m.content for m in messages]
         response = self._client.models.generate_content(
