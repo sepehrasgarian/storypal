@@ -47,6 +47,10 @@ FUNCTION_WORDS = frozenset(
     "a an the and or but is are was were to of in on at it i".split()
 )
 
+# --- Judges (S3 grounding, S4 pedagogy) ---------------------------------
+# A judge score below this means the tutor's reply failed that check.
+JUDGE_FAIL_THRESHOLD = 0.5
+
 # --- Models -------------------------------------------------------------
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini")
 LLM_MODEL = os.getenv("LLM_MODEL", "gemini-2.5-flash")
