@@ -69,3 +69,27 @@ class TestProblemWords:
     def test_orders_by_sentence_position(self):
         g = graded("sun is")
         assert problem_words(g.assessment) == ["the", "hot"]
+
+
+class TestAdversarialRegressions:
+    """Both of these shipped broken and were caught by writing cases
+    designed to break the system rather than to pass."""
+
+    def test_invented_tail_is_not_a_perfect_read(self):
+        # Was: S1 1.00, trusted, and the child advanced on a hallucination.
+        g = graded("the sun is hot thanks for watching")
+        assert not g.s2.reliable
+        assert not g.accepted
+
+    def test_scattered_self_talk_is_still_trusted(self):
+        # The precision side of the same rule: children narrate themselves.
+        g = graded("um the sun is hot i did it")
+        assert g.s2.reliable
+
+    def test_failed_drill_is_graded_as_a_drill_not_the_sentence(self):
+        # Was: saying "fun" while drilling "sun" scored 0.12 against the
+        # whole sentence and blamed words nobody asked the child to say.
+        g = graded("fun", pending=["sun"])
+        assert g.drill_words == ["sun"]
+        assert g.graded_target == "sun"
+        assert not g.drill_worked

@@ -42,8 +42,19 @@ def run_case(case: dict) -> list[str]:
     return failures
 
 
+def load_cases() -> list[dict]:
+    """The textbook suite plus the adversarial one. Adversarial cases
+    were written to break the system, and two of them did."""
+    here = Path(__file__).parent
+    cases = json.loads((here / "cases.json").read_text())
+    for case in json.loads((here / "adversarial.json").read_text()):
+        case["name"] = "adversarial: " + case["name"]
+        cases.append(case)
+    return cases
+
+
 def main() -> int:
-    cases = json.loads((Path(__file__).parent / "cases.json").read_text())
+    cases = load_cases()
     results = {c["name"]: run_case(c) for c in cases}
 
     # S2 confusion matrix: positive class = "unreliable" (hallucination).

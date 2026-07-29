@@ -15,6 +15,7 @@ from storypal.config import (
     ASR_AVG_LOGPROB_UNRELIABLE,
     ASR_COMPRESSION_RATIO_UNRELIABLE,
     ASR_NO_SPEECH_UNRELIABLE,
+    ASR_NOVEL_RUN_UNRELIABLE,
     ASR_NOVEL_WORD_RATIO_UNRELIABLE,
     FUNCTION_WORDS,
 )
@@ -74,9 +75,16 @@ def s2_asr_reliability(telemetry: AsrTelemetry, assessment: Assessment) -> Signa
     if telemetry.compression_ratio > ASR_COMPRESSION_RATIO_UNRELIABLE:
         reasons.append(f"repetitive output (compression_ratio={telemetry.compression_ratio:.2f})")
 
-    novel_ratio = _novel_word_ratio(assessment)
-    if novel_ratio > ASR_NOVEL_WORD_RATIO_UNRELIABLE:
-        reasons.append(f"{novel_ratio:.0%} of heard words match nothing in the target")
+    novel_count, heard_count, longest_run = _novel_words(assessment)
+    if heard_count and novel_count / heard_count > ASR_NOVEL_WORD_RATIO_UNRELIABLE:
+        reasons.append(
+            f"{novel_count / heard_count:.0%} of heard words match nothing in the target"
+        )
+    elif longest_run >= ASR_NOVEL_RUN_UNRELIABLE:
+        # An invented phrase, as opposed to scattered self-talk.
+        reasons.append(
+            f"{longest_run} words in a row match nothing in the target"
+        )
 
     reliable = not reasons
     return Signal(
@@ -87,17 +95,16 @@ def s2_asr_reliability(telemetry: AsrTelemetry, assessment: Assessment) -> Signa
     )
 
 
-def _novel_word_ratio(assessment: Assessment) -> float:
-    """Fraction of heard words that cannot be explained by the target.
+def _novel_words(assessment: Assessment) -> tuple[int, int, int]:
+    """(novel, heard, longest consecutive run of novel words).
 
     A heard word is 'explained' if it matched a target word, is a
     near-miss of one, or is a common function word the recognizer may
-    insert harmlessly.
-    """
+    insert harmlessly."""
     target_words = normalize(assessment.target)
     heard = [v for v in assessment.verdicts if v.heard_word is not None]
     if not heard:
-        return 0.0
+        return 0, 0, 0
 
     def explained(verdict) -> bool:
         if verdict.status in (WordStatus.CORRECT, WordStatus.NEAR_MISS):
@@ -108,5 +115,9 @@ def _novel_word_ratio(assessment: Assessment) -> float:
         # misplacement, not fabrication.
         return any(is_near_miss(t, verdict.heard_word) for t in target_words)
 
-    novel = sum(1 for v in heard if not explained(v))
-    return novel / len(heard)
+    flags = [not explained(v) for v in heard]
+    longest = run = 0
+    for is_novel in flags:
+        run = run + 1 if is_novel else 0
+        longest = max(longest, run)
+    return sum(flags), len(heard), longest

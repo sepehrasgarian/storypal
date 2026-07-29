@@ -1,0 +1,73 @@
+[
+  {"name": "partial hallucination: real read plus an invented tail",
+   "why": "Fabrication is a minority of the transcript, so a ratio over heard words misses it. Before this case existed the child was praised for a perfect read and advanced.",
+   "target": "The sun is hot.", "transcript": "the sun is hot thanks for watching",
+   "telemetry": {"avg_logprob": -0.3, "no_speech_prob": 0.08, "compression_ratio": 1.25},
+   "expect": {"s2_reliable": false}},
+
+  {"name": "invented prefix before a real read",
+   "why": "Same trap from the other end of the utterance.",
+   "target": "The sun is hot.", "transcript": "please subscribe the sun is hot",
+   "telemetry": {"avg_logprob": -0.3, "no_speech_prob": 0.08, "compression_ratio": 1.25},
+   "expect": {"s2_reliable": false}},
+
+  {"name": "benign self-talk must NOT be flagged",
+   "why": "The precision side: children narrate themselves. Over-flagging would stall every real reader.",
+   "target": "The sun is hot.", "transcript": "um the sun is hot i did it",
+   "telemetry": {"avg_logprob": -0.4, "no_speech_prob": 0.1, "compression_ratio": 1.3},
+   "expect": {"s2_reliable": true, "accuracy_min": 1.0}},
+
+  {"name": "confident fabrication with healthy telemetry",
+   "why": "Telemetry alone cannot catch a recogniser that is confidently wrong.",
+   "target": "The sun is hot.", "transcript": "please subscribe to my channel",
+   "telemetry": {"avg_logprob": -0.25, "no_speech_prob": 0.05, "compression_ratio": 1.2},
+   "expect": {"s2_reliable": false}},
+
+  {"name": "boundary: logprob exactly at the threshold stays trusted",
+   "why": "Thresholds must be strict, not accidental. -1.0 is the edge, not past it.",
+   "target": "The sun is hot.", "transcript": "the sun is hot",
+   "telemetry": {"avg_logprob": -1.0, "no_speech_prob": 0.08, "compression_ratio": 1.25},
+   "expect": {"s2_reliable": true, "accuracy_min": 1.0}},
+
+  {"name": "boundary: no-speech exactly at the threshold stays trusted",
+   "why": "Same edge, other signal.",
+   "target": "The sun is hot.", "transcript": "the sun is hot",
+   "telemetry": {"avg_logprob": -0.3, "no_speech_prob": 0.5, "compression_ratio": 1.25},
+   "expect": {"s2_reliable": true, "accuracy_min": 1.0}},
+
+  {"name": "homophone substitution is heard as a different word",
+   "why": "'son' for 'sun' is a real reading error the recogniser CAN see; it must be graded, not excused.",
+   "target": "The sun is hot.", "transcript": "the son is hot",
+   "telemetry": {"avg_logprob": -0.35, "no_speech_prob": 0.1, "compression_ratio": 1.25},
+   "expect": {"s2_reliable": true, "accuracy_max": 0.99, "problem_words": ["sun"]}},
+
+  {"name": "correct words in the wrong order",
+   "why": "Every word exists in the sentence, so novelty is zero and the turn is trusted - the child really did say these words. Word order is scored, not doubted.",
+   "target": "The sun is hot.", "transcript": "hot is sun the",
+   "telemetry": {"avg_logprob": -0.35, "no_speech_prob": 0.1, "compression_ratio": 1.25},
+   "expect": {"s2_reliable": true, "accuracy_max": 0.99}},
+
+  {"name": "stammering repetition of a real word",
+   "why": "Disfluency is normal in young readers and must not read as a recogniser loop.",
+   "target": "The sun is hot.", "transcript": "the the the sun is hot",
+   "telemetry": {"avg_logprob": -0.5, "no_speech_prob": 0.12, "compression_ratio": 1.9},
+   "expect": {"s2_reliable": true, "accuracy_min": 1.0}},
+
+  {"name": "recogniser loop on one word",
+   "why": "The same surface shape as stammering, separated only by the compression signal.",
+   "target": "The sun is hot.", "transcript": "the the the the the the the the the the",
+   "telemetry": {"avg_logprob": -0.6, "no_speech_prob": 0.2, "compression_ratio": 3.4},
+   "expect": {"s2_reliable": false}},
+
+  {"name": "single real word from the sentence",
+   "why": "A one-word answer that IS in the target is a partial read, not chatter and not fabrication.",
+   "target": "The sun is hot.", "transcript": "sun",
+   "telemetry": {"avg_logprob": -0.4, "no_speech_prob": 0.15, "compression_ratio": 1.1},
+   "expect": {"s2_reliable": true, "accuracy_max": 0.99}},
+
+  {"name": "near-miss mispronunciation must not look like fabrication",
+   "why": "The core precision case: real mistakes are the tutor's whole job.",
+   "target": "That thick rug is soft.", "transcript": "that tick rug is soft",
+   "telemetry": {"avg_logprob": -0.55, "no_speech_prob": 0.12, "compression_ratio": 1.3},
+   "expect": {"s2_reliable": true, "accuracy_max": 0.99, "problem_words": ["thick"]}}
+]

@@ -1,14 +1,11 @@
 """The eval suite doubles as a regression gate: every labeled case
 must pass through the real pipeline."""
 
-import json
-from pathlib import Path
-
 import pytest
 
-from eval.run_eval import run_case
+from eval.run_eval import load_cases, run_case
 
-CASES = json.loads((Path(__file__).parent.parent / "eval" / "cases.json").read_text())
+CASES = load_cases()
 
 
 @pytest.mark.parametrize("case", CASES, ids=[c["name"] for c in CASES])

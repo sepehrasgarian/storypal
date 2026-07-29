@@ -11,7 +11,9 @@ from dataclasses import dataclass
 from storypal.config import (
     AUTO_ADVANCE_ACCURACY, DRILL_FULL_MISMATCH, DRILL_MATCH_ACCURACY,
 )
-from storypal.core.assessment import Assessment, WordStatus, assess, is_conversational
+from storypal.core.assessment import (
+    Assessment, WordStatus, assess, is_conversational, normalize,
+)
 from storypal.core.signals import AsrTelemetry, Signal, s1_reading_accuracy, s2_asr_reliability
 
 PROBLEM_STATUSES = (WordStatus.MISSED, WordStatus.NEAR_MISS, WordStatus.SUBSTITUTED)
@@ -63,7 +65,11 @@ def grade_turn(
     if not chat_turn and pending_drill and assessment.accuracy < DRILL_FULL_MISMATCH:
         mini_target = " ".join(pending_drill)
         mini = assess(mini_target, transcript)
-        if mini.accuracy >= DRILL_MATCH_ACCURACY:
+        # A short utterance while a drill is pending is an ATTEMPT at that
+        # drill, right or wrong. Grading a failed attempt against the whole
+        # sentence would blame the child for words nobody asked them to say.
+        attempted_drill = len(normalize(transcript)) <= len(pending_drill) + 1
+        if mini.accuracy >= DRILL_MATCH_ACCURACY or attempted_drill:
             drill_words = list(pending_drill)
             assessment = mini
             graded_target = mini_target

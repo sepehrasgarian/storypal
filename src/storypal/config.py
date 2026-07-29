@@ -91,6 +91,13 @@ ASR_COMPRESSION_RATIO_UNRELIABLE = 2.4  # above this, repetitive hallucination
 # transcript is treated as fabricated content.
 ASR_NOVEL_WORD_RATIO_UNRELIABLE = 0.5
 
+# Consecutive unexplained words before the transcript is treated as
+# fabricated. Invented content arrives as a phrase ("thanks for
+# watching", "please subscribe"); a child's self-talk arrives as
+# scattered single words ("um ... i did it"). Both can total the same
+# number of novel words, so contiguity - not the count - separates them.
+ASR_NOVEL_RUN_UNRELIABLE = 2
+
 # Common words the recognizer may add that carry no evidence of
 # fabrication ("the", "a", ...). Excluded from the novelty check.
 FUNCTION_WORDS = frozenset(
