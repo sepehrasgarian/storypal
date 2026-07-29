@@ -135,12 +135,14 @@ class TestWarmup:
             "/api/warmup", files={"audio": ("hi.webm", b"fake", "audio/webm")}
         ).json()
 
-    def test_hearing_the_child_confirms_and_advances(self, env):
+    def test_hearing_the_child_confirms_and_models_the_sentence(self, env):
         env["asr"].next = TranscriptionResult("hello story pal", AsrTelemetry(-0.3, 0.1, 1.2))
         body = self.post_warmup(env)
         assert body["heard"] is True
         assert "loud and clear" in body["text"]
-        assert body["target"]
+        # StoryPal must speak the first sentence so the child can repeat it.
+        assert body["target"] in body["text"]
+        assert "read it back" in body["text"]
 
     def test_silence_asks_to_try_again(self, env):
         env["asr"].next = TranscriptionResult("", AsrTelemetry(0.0, 1.0, 1.0))

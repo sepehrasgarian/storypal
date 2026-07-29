@@ -144,16 +144,15 @@ async function submitTurn(blob) {
 }
 
 function renderWarmup(result) {
-  $("reply").textContent = result.text;
+  // Hide the inline TTS control tags from the visible text.
+  $("reply").textContent = result.text.replace(/<\|[^|]*\|>/g, " ").replace(/\s+/g, " ");
   if (result.transcript) $("transcript").textContent = 'I heard: "' + result.transcript + '"';
   new Audio(result.audio_url).play().catch(() => {});
   if (result.heard) {
     mode = "reading";
     target = result.target;
-    setTimeout(() => {
-      showSentence(target, []);
-      $("transcript").textContent = "";
-    }, 2500); // let the confirmation land, then reveal the first sentence
+    showSentence(target, []); // words appear while StoryPal reads them aloud
+    $("transcript").textContent = "";
   }
 }
 

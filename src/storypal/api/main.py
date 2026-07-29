@@ -134,8 +134,12 @@ def create_app(services: Services | None = None) -> FastAPI:
 
         heard = bool(result.transcript.strip()) and result.telemetry.no_speech_prob <= 0.5
         if heard:
+            # Model the first sentence out loud (slowed) so the child
+            # knows their job is to repeat it.
             text = ("I can hear you loud and clear! Hello to you too! "
-                    "Now let's read our first sentence together.")
+                    "Here is our first sentence. Listen to me first: "
+                    f"<|prosody:speed_slow|> {state.target} "
+                    "Now tap the button and read it back to me!")
         else:
             text = ("Hmm, I couldn't quite hear you. Make sure your microphone "
                     "is on, and try saying hello one more time!")
