@@ -35,37 +35,94 @@ exactly that reason.
 ## Architecture
 
 ```
-BROWSER                      API (FastAPI)                          EXTERNAL
-────────                     ─────────────                          ────────
-🎤 record ── POST /api/turn ──► asr.py ──────────────────────────►  Whisper (local)
-                                  │  transcript + confidence
-                                  │  telemetry
-                                  ▼
-                    ┌── SYNC PRE-LOOP (deterministic, free) ──┐
-                    │  session.py     choose the frame:        │
-                    │                 reading, drill or chat   │
-                    │  S1 reading accuracy                     │
-                    │  S2 recogniser reliability ◄── gates S1  │
-                    └──────────────────┬───────────────────────┘
-                                       ▼
-                                  prompt.py   (signals + profile + tactic)
-                                       ▼
-                                  agent/loop.py ─────────────►  Gemini 2.5 Flash
-                                       ▼
-                                  tts.py  ───────────────────►  Higgs TTS 3
-                                       │                        (Boson API)
-🔊 play ◄── JSON reply ────────────────┘
-                                       │
-                    ┌── ASYNC POST-LOOP (after reply is sent) ─┐
-                    │  S3 tutor grounding   (LLM judge)        │
-                    │  S4 pedagogical fit   (LLM judge)        │
-                    │  triage.py ──► curated data              │
-                    │  observability ──► Langfuse (optional)   │
-                    └──────────────────────────────────────────┘
+BROWSER                        API  (FastAPI, POST /api/turn)                EXTERNAL
+────────                       ───────────────────────────────               ────────
+🎤 recording ─────────────────►  speech/asr.py  ─────────────────────────►  Whisper (local)
+                                    │  transcript + telemetry
+                                    │  (avg_logprob, no_speech_prob,
+                                    │   compression_ratio)
+                                    ▼
+                    ┌────────────── SYNC, deterministic, free ──────────────┐
+                    │                                                        │
+                    │  session.grade_turn()                                 │
+                    │    1. frame the utterance: reading, drill, or chat    │
+                    │    2. S1  word alignment against the known sentence   │
+                    │    3. S2  recogniser reliability, gates S1            │
+                    │                                                        │
+                    │  learning/profile.py    write memory  ◄── only if S2  │
+                    │  learning/kb.py         pick a tactic ◄── reliable    │
+                    │  learning/prompt.py     compile the system prompt     │
+                    │                                                        │
+                    └───────────────────────────┬────────────────────────────┘
+                                                 ▼
+                                 agent/loop.py ─────────────────────────►  Gemini 2.5 Flash
+                                    │  tool calls: drill_sound,               (thinking off)
+                                    │  set_difficulty, flag_for_review,
+                                    │  next_sentence
+                                    ▼
+                                 speech/tts.py ──────────────────────────►  Higgs TTS 3
+                                    │  style chosen by the signals,           (Boson API)
+                                    │  never by the model
+🔊 reply + signals + prompt ◄───────┘
+   (one JSON response)
+                                                 │
+                    ┌──── ASYNC, after the reply is already on its way ─────┐
+                    │                                                        │
+                    │  agent/judges.py   S3 grounding, S4 pedagogy          │
+                    │    run concurrently, not sequentially   ─────────►  Gemini 2.5 Flash x2
+                    │                                                        │
+                    │  core/triage.py    route: archive, review, finetune   │
+                    │  learning/curated.py  write the training piles        │
+                    │  observability.py   export the turn ─────────────►  Langfuse (optional)
+                    │                                                        │
+                    └────────────────────────────────────────────────────────┘
 ```
 
-The deterministic signals run inside the turn. The judges run after the reply
-has been sent, so quality control never sits on the latency path.
+Everything above the first horizontal line runs inside the request the child
+is waiting on, and every step there is either arithmetic or a single model
+call with no reasoning step. Everything below the second line runs after the
+child has already heard the reply, so auditing the tutor never costs them
+time.
+
+### One turn, in order
+
+1. **Listen.** `asr.py` sends the recording to Whisper and keeps the
+   confidence numbers, not only the words.
+2. **Frame it.** `session.grade_turn` decides what kind of turn this is
+   before scoring anything. A short reply made of chat words that also fails
+   to match the sentence is conversation, not a failed reading. A short
+   reply that matches words the previous turn flagged as missed is a drill
+   answer, graded against only those words. Everything else is a full
+   reading attempt, graded against the whole sentence.
+3. **Score it.** S1 aligns the transcript against the target word by word.
+   Known homophones count as correct, since a child who reads "son" for
+   "sun" pronounced the word correctly and no listening tutor can fault
+   them for it.
+4. **Decide whether to believe it.** S2 checks the recogniser's own
+   telemetry against fixed thresholds, then checks whether the words heard
+   can be explained by the sentence on screen. Fabricated content is
+   detected by contiguous runs of unexplained words rather than by volume,
+   because invented phrases and a child's own scattered self talk can carry
+   the same word count and only their shape tells them apart.
+5. **Write memory, conditionally.** The learner profile and the tactic
+   scoreboard are updated only when S2 trusts the turn. A turn the system
+   could not verify leaves no trace.
+6. **Compile the prompt.** Persona, the learner's history, this turn's
+   signals, the chosen teaching tactic, and which tools currently have
+   grounds to be offered, assembled fresh. There is no accumulated chat
+   history anywhere in this system.
+7. **Generate the reply.** Gemini answers, with function calling available
+   for four tools. Thinking is disabled, since neither writing two warm
+   sentences nor scoring a short rubric benefits from deliberation, and the
+   difference measured on this workload was roughly five seconds against
+   one.
+8. **Speak it.** Higgs renders the reply with an emotion or prosody tag
+   chosen by the score, cached by content so a repeated phrase is
+   synthesised once.
+9. **Respond, then audit.** The response returns to the browser immediately.
+   Only afterward do the two judges run, concurrently rather than one after
+   the other, and their verdict decides which of three piles the turn is
+   filed into.
 
 ## The signals
 
