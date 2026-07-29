@@ -64,6 +64,17 @@ AUTO_ADVANCE_ACCURACY = 0.99
 DRILL_MATCH_ACCURACY = 0.75
 DRILL_FULL_MISMATCH = 0.5
 
+# Children answer the tutor back ("Yes, I do!", "okay"). A short reply
+# made only of these words, that also matches the target poorly, is
+# conversation - it must never be graded as a failed reading.
+# Deliberately conservative: no word here appears in any story sentence.
+CHAT_WORDS = frozenset(
+    "yes no okay ok yeah yep nope sure please thanks thank you i do dont "
+    "what huh hmm um uh hello hi hey bye damn duh it one more again wait "
+    "stop now me lets try another im ready".split()
+)
+CHAT_MAX_WORDS = 6
+
 # --- Judges (S3 grounding, S4 pedagogy) ---------------------------------
 # A judge score below this means the tutor's reply failed that check.
 JUDGE_FAIL_THRESHOLD = 0.5

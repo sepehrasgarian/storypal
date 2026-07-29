@@ -100,6 +100,20 @@ def is_near_miss(target_word: str, heard_word: str) -> bool:
     return edit_distance(target_word, heard_word) <= limit
 
 
+def is_conversational(transcript: str, assessment: "Assessment") -> bool:
+    """A short reply made only of chat words that also matches the target
+    poorly is the child talking TO the tutor, not reading. It must be
+    answered, not graded."""
+    from storypal.config import CHAT_MAX_WORDS, CHAT_WORDS, DRILL_FULL_MISMATCH
+
+    words = normalize(transcript)
+    return (
+        0 < len(words) <= CHAT_MAX_WORDS
+        and all(w in CHAT_WORDS for w in words)
+        and assessment.accuracy < DRILL_FULL_MISMATCH
+    )
+
+
 def assess(target: str, transcript: str) -> Assessment:
     """Grade a transcript against the target sentence."""
     target_words = normalize(target)

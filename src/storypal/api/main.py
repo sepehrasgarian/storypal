@@ -24,7 +24,8 @@ from storypal.config import (
     AUTO_ADVANCE_ACCURACY, DATA_DIR, DRILL_FULL_MISMATCH, DRILL_MATCH_ACCURACY,
     PROFILE_PATH, STORIES, TRAJECTORY_PATH,
 )
-from storypal.core.assessment import WordStatus
+from storypal.core.assessment import WordStatus, is_conversational
+from storypal.core.signals import Signal
 from storypal.learning.curated import CuratedStore
 from storypal.agent.judges import s3_grounding, s4_pedagogy
 from storypal.learning.kb import TacticStats
@@ -211,11 +212,15 @@ def create_app(services: Services | None = None) -> FastAPI:
         assessment = assess(target, asr_result.transcript)
         graded_target = target
 
+        # The child talking TO the tutor ("Yes, I do!") is conversation,
+        # not a failed reading - answer it, never grade it.
+        chat_turn = is_conversational(asr_result.transcript, assessment)
+
         # Drill follow-up: after a flawed read the child often repeats
         # just the practiced word. If the recording matches those words
         # but not the sentence, grade the drill - not the sentence.
         drill_words = None
-        if state.pending_drill and assessment.accuracy < DRILL_FULL_MISMATCH:
+        if not chat_turn and state.pending_drill and assessment.accuracy < DRILL_FULL_MISMATCH:
             mini_target = " ".join(state.pending_drill)
             mini = assess(mini_target, asr_result.transcript)
             if mini.accuracy >= DRILL_MATCH_ACCURACY:
@@ -223,14 +228,22 @@ def create_app(services: Services | None = None) -> FastAPI:
                 assessment = mini
                 graded_target = mini_target
 
-        s1 = s1_reading_accuracy(assessment)
+        if chat_turn:
+            s1 = Signal(
+                id="S1", score=assessment.accuracy, reliable=True,
+                reasons=("conversational reply, not a reading attempt - not graded",),
+            )
+        else:
+            s1 = s1_reading_accuracy(assessment)
         s2 = s2_asr_reliability(asr_result.telemetry, assessment)
 
-        # Tier 2: unreliable turns never touch memory. In drill mode the
-        # mini assessment only covers the practiced words, so sentence
-        # words the child was not asked to say cannot be logged as misses.
-        profile_mod.update_from_turn(state.profile, assessment, s2)
-        profile_mod.save(state.profile, PROFILE_PATH)
+        # Tier 2: unreliable turns never touch memory, and conversation
+        # is not evidence of reading ability. In drill mode the mini
+        # assessment only covers the practiced words, so sentence words
+        # the child was not asked to say cannot be logged as misses.
+        if not chat_turn:
+            profile_mod.update_from_turn(state.profile, assessment, s2)
+            profile_mod.save(state.profile, PROFILE_PATH)
 
         # Strategy KB: a drill response is the outcome signal for the
         # tactic that was used to teach it.
@@ -241,7 +254,8 @@ def create_app(services: Services | None = None) -> FastAPI:
 
         # Tier 1: instructions rebuilt from this turn's state.
         system_prompt = build_prompt(
-            target, assessment, s1, s2, state.profile, drill_words=drill_words
+            target, assessment, s1, s2, state.profile,
+            drill_words=drill_words, conversational=chat_turn,
         )
         state.last_prompt = system_prompt
 
@@ -260,12 +274,13 @@ def create_app(services: Services | None = None) -> FastAPI:
 
         if ctx.next_story:
             state.target = ctx.next_story  # the agent chose the next sentence
-        elif drill_words is None and s2.reliable and s1.score >= AUTO_ADVANCE_ACCURACY:
+        elif not chat_turn and drill_words is None and s2.reliable and s1.score >= AUTO_ADVANCE_ACCURACY:
             _advance_target()  # accepted full read: move on automatically
 
         # Remember what to expect next turn: a flawed but trusted full
-        # read sets up a drill; a successful drill clears it.
-        if s2.reliable:
+        # read sets up a drill; a successful drill clears it. Chat turns
+        # change nothing - the child still owes the same reading.
+        if s2.reliable and not chat_turn:
             if drill_words is None and 0 < s1.score < AUTO_ADVANCE_ACCURACY:
                 state.pending_drill = [
                     v.target_word for v in assessment.verdicts

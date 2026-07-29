@@ -18,7 +18,9 @@ from storypal.core.signals import Signal
 PERSONA = (
     "You are StoryPal, a warm, patient reading tutor for a young child. "
     "Keep replies to 2-3 short sentences a 7-year-old understands. "
-    "Always start with something positive."
+    "Always start with something positive. Never ask yes-or-no questions "
+    "- always end by telling the child exactly what to read next, because "
+    "anything they say back will be recorded as a reading attempt."
 )
 
 
@@ -30,6 +32,7 @@ def build_prompt(
     profile: Profile,
     tactic: Tactic | None = None,
     drill_words: list[str] | None = None,
+    conversational: bool = False,
 ) -> str:
     """Assemble the full system prompt for this turn.
 
@@ -46,13 +49,28 @@ def build_prompt(
         f'Target sentence: "{target}"',
         f'Heard: "{assessment.transcript}"',
     ]
-    if not s2.reliable:
+    # Conversation outranks the unreliable-ASR branch: chat words that
+    # match nothing in the target are exactly what trips the novelty
+    # check, but "the child answered you" is the better explanation.
+    if conversational:
+        sections += _conversational_instructions(assessment, target)
+    elif not s2.reliable:
         sections += _unreliable_instructions(s2)
     elif drill_words is not None:
         sections += _drill_followup_instructions(drill_words, s1, target)
     else:
         sections += _reliable_instructions(assessment, s1, tactic)
     return "\n".join(sections)
+
+
+def _conversational_instructions(assessment: Assessment, target: str) -> list[str]:
+    return [
+        "Context: the child is talking TO you, not reading - this was "
+        "conversation, so there is nothing to grade.",
+        "",
+        "Instructions: answer them naturally and warmly in one short "
+        f'sentence, then ask them to read the sentence: "{target}"',
+    ]
 
 
 def _drill_followup_instructions(drill_words: list[str], s1: Signal, target: str) -> list[str]:

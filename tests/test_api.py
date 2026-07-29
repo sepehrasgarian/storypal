@@ -151,6 +151,34 @@ class TestAutoAdvance:
         assert body["next_target"] == TARGET
 
 
+class TestConversationalTurns:
+    """'Yes, I do!' is the child answering the tutor - it must be
+    answered, never graded as a failed reading. (Seen in real logs:
+    these turns were polluting the profile with fake misses.)"""
+
+    def test_yes_i_do_is_not_graded(self, env):
+        env["asr"].next = TranscriptionResult("Yes, I do.", AsrTelemetry(-0.3, 0.1, 1.2))
+        body = post_turn(env).json()
+        assert "not a reading attempt" in body["signals"]["S1"]["reasons"][0]
+        assert "talking TO you" in body["prompt"]
+        # No fake misses recorded, no advance earned.
+        assert env["client"].get("/api/profile").json()["missed_words"] == {}
+        assert body["next_target"] == TARGET
+
+    def test_frustration_is_answered_not_graded(self, env):
+        env["asr"].next = TranscriptionResult("Damn it!", AsrTelemetry(-0.3, 0.1, 1.2))
+        body = post_turn(env).json()
+        assert "talking TO you" in body["prompt"]
+        assert env["client"].get("/api/profile").json()["missed_words"] == {}
+
+    def test_real_partial_read_is_still_graded(self, env):
+        # "the cat sat" contains story words - reading, not chat.
+        env["asr"].next = TranscriptionResult("the cat sat", AsrTelemetry(-0.3, 0.1, 1.2))
+        body = post_turn(env).json()
+        assert "talking TO you" not in body["prompt"]
+        assert env["client"].get("/api/profile").json()["missed_words"] != {}
+
+
 class TestDrillFollowup:
     """After a flawed read, repeating just the practiced word must be
     graded as a drill - not as skipping the rest of the sentence."""
