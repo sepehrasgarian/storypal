@@ -4,6 +4,7 @@
 let target = "";
 let recorder = null;
 let chunks = [];
+let mode = "reading"; // "warmup" until the mic check passes
 
 const $ = (id) => document.getElementById(id);
 
@@ -29,10 +30,13 @@ async function init() {
     try {
       const greeting = await getJSON2("/api/greet");
       target = greeting.target;
-      showSentence(target, []);
+      mode = "warmup";
+      showWarmupPrompt();
       $("reply").textContent = greeting.text;
       new Audio(greeting.audio_url).play().catch(() => {});
-    } catch (e) { /* greeting is a nicety; never block the session on it */ }
+    } catch (e) {
+      showSentence(target, []); // greeting is a nicety; never block the session
+    }
     $("welcome").classList.add("hidden");
   });
 
@@ -121,16 +125,44 @@ async function submitTurn(blob) {
   try {
     const form = new FormData();
     form.append("audio", blob, "read.webm");
-    form.append("target", target);
-    const res = await fetch("/api/turn", { method: "POST", body: form });
-    if (!res.ok) throw new Error(await res.text());
-    render(await res.json());
+    if (mode === "warmup") {
+      const res = await fetch("/api/warmup", { method: "POST", body: form });
+      if (!res.ok) throw new Error(await res.text());
+      renderWarmup(await res.json());
+    } else {
+      form.append("target", target);
+      const res = await fetch("/api/turn", { method: "POST", body: form });
+      if (!res.ok) throw new Error(await res.text());
+      render(await res.json());
+    }
   } catch (err) {
     $("reply").textContent = "Oops, something went wrong: " + err.message;
   } finally {
     $("recBtn").disabled = false;
-    $("recLabel").textContent = "Tap to read";
+    $("recLabel").textContent = mode === "warmup" ? "Tap and say hello" : "Tap to read";
   }
+}
+
+function renderWarmup(result) {
+  $("reply").textContent = result.text;
+  if (result.transcript) $("transcript").textContent = 'I heard: "' + result.transcript + '"';
+  new Audio(result.audio_url).play().catch(() => {});
+  if (result.heard) {
+    mode = "reading";
+    target = result.target;
+    setTimeout(() => {
+      showSentence(target, []);
+      $("transcript").textContent = "";
+    }, 2500); // let the confirmation land, then reveal the first sentence
+  }
+}
+
+function showWarmupPrompt() {
+  $("sentence").innerHTML =
+    '<span class="word-chip">Say</span><span class="word-chip">hello</span>' +
+    '<span class="word-chip">to</span><span class="word-chip">StoryPal!</span>';
+  $("legend").hidden = true;
+  $("recLabel").textContent = "Tap and say hello";
 }
 
 function render(turn) {

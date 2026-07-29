@@ -129,6 +129,31 @@ class TestGreeting:
         assert "Welcome back" in body["text"]
 
 
+class TestWarmup:
+    def post_warmup(self, env):
+        return env["client"].post(
+            "/api/warmup", files={"audio": ("hi.webm", b"fake", "audio/webm")}
+        ).json()
+
+    def test_hearing_the_child_confirms_and_advances(self, env):
+        env["asr"].next = TranscriptionResult("hello story pal", AsrTelemetry(-0.3, 0.1, 1.2))
+        body = self.post_warmup(env)
+        assert body["heard"] is True
+        assert "loud and clear" in body["text"]
+        assert body["target"]
+
+    def test_silence_asks_to_try_again(self, env):
+        env["asr"].next = TranscriptionResult("", AsrTelemetry(0.0, 1.0, 1.0))
+        body = self.post_warmup(env)
+        assert body["heard"] is False
+        assert "try saying hello" in body["text"]
+
+    def test_warmup_never_touches_memory(self, env):
+        env["asr"].next = TranscriptionResult("hello", AsrTelemetry(-0.3, 0.1, 1.2))
+        self.post_warmup(env)
+        assert env["client"].get("/api/profile").json()["total_turns"] == 0
+
+
 class TestNextSentence:
     def test_manual_skip_changes_the_target(self, env):
         first = env["client"].get("/api/story").json()["target"]

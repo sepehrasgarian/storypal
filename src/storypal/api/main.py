@@ -99,14 +99,50 @@ def create_app(services: Services | None = None) -> FastAPI:
         svc = services_now()
         if state.profile.total_turns == 0:
             text = ("Hi there, I'm StoryPal! I'm so happy to read with you today. "
-                    "When you're ready, tap the big orange button, read the "
-                    "sentence out loud with me, and tap again when you're done!")
+                    "First, let's check I can hear you: tap the big orange "
+                    "button, say hello to me, and tap again when you're done!")
         else:
             text = ("Welcome back, my friend! I missed reading with you. "
-                    "Let's pick up where we left off — tap the button and "
-                    "read the sentence out loud!")
+                    "First, tap the big orange button and say hello, so I "
+                    "know I can hear you!")
         audio_file = svc.tts.synthesize(text, style="celebrate")
         return {
+            "text": text,
+            "audio_url": f"/api/audio/{Path(audio_file).name}",
+            "target": state.target,
+        }
+
+    @app.post("/api/warmup")
+    async def warmup(audio: UploadFile = File(...)):
+        """Mic-check warm-up: the child says hello, we confirm we heard
+        them. Nothing is graded and nothing touches memory — this exists
+        to verify the audio pipeline (and build confidence) before the
+        first real turn. Fixed replies so the audio caches."""
+        svc = services_now()
+        with NamedTemporaryFile(suffix=Path(audio.filename or "a.webm").suffix, delete=False) as f:
+            f.write(await audio.read())
+            audio_path = f.name
+        try:
+            result = svc.asr.transcribe(audio_path)
+        except Exception:
+            from storypal.core.signals import AsrTelemetry
+            from storypal.speech.asr import TranscriptionResult
+
+            result = TranscriptionResult("", AsrTelemetry(no_speech_prob=1.0))
+        finally:
+            os.unlink(audio_path)
+
+        heard = bool(result.transcript.strip()) and result.telemetry.no_speech_prob <= 0.5
+        if heard:
+            text = ("I can hear you loud and clear! Hello to you too! "
+                    "Now let's read our first sentence together.")
+        else:
+            text = ("Hmm, I couldn't quite hear you. Make sure your microphone "
+                    "is on, and try saying hello one more time!")
+        audio_file = svc.tts.synthesize(text, style="celebrate" if heard else "encourage")
+        return {
+            "heard": heard,
+            "transcript": result.transcript,
             "text": text,
             "audio_url": f"/api/audio/{Path(audio_file).name}",
             "target": state.target,
