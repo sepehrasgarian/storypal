@@ -110,15 +110,25 @@ function render(turn) {
 }
 
 function showSentence(text, assessment) {
-  const verdictByWord = {};
-  (assessment || []).forEach((v) => {
-    if (v.target_word) verdictByWord[v.target_word.toLowerCase()] = v.status;
-  });
-  $("sentence").innerHTML = text.split(" ").map((word) => {
-    const key = word.toLowerCase().replace(/[^a-z0-9']/g, "");
-    const status = verdictByWord[key] || "";
-    return '<span class="w-' + status + '">' + esc(word) + "</span>";
-  }).join(" ");
+  // Verdicts arrive in target-word order, so zip them positionally with
+  // the display words — repeated words each get their own verdict.
+  const verdicts = (assessment || []).filter((v) => v.target_word);
+  const words = text.split(" ");
+  const graded = verdicts.length > 0;
+
+  $("sentence").innerHTML = words.map((word, i) => {
+    const v = verdicts[i];
+    const status = v ? "w-" + v.status : "";
+    let said = "";
+    if (v && (v.status === "near_miss" || v.status === "substituted")) {
+      said = '<span class="said">you said &#8220;' + esc(v.heard_word) + '&#8221;</span>';
+    } else if (v && v.status === "missed") {
+      said = '<span class="said">skipped</span>';
+    }
+    return '<span class="word-chip ' + status + '" style="animation-delay:' + (i * 45) + 'ms">' +
+           esc(word) + said + "</span>";
+  }).join("");
+  $("legend").hidden = !graded;
 }
 
 async function refreshPanels() {
