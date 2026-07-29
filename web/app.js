@@ -14,7 +14,53 @@ const ICONS = {
   warn: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>',
 };
 
+// --- StoryPal's face: one mood per state of the turn -------------------
+// A 7-year-old reads the face long before they read the words.
+
+const FACE = (eyes, mouth) =>
+  '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" ' +
+  'stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + eyes + mouth + "</svg>";
+
+const EYES = {
+  open: '<circle cx="9" cy="10" r="1.4" fill="#fff"/><circle cx="15" cy="10" r="1.4" fill="#fff"/>',
+  happy: '<path d="M7.4 10.6c.5-1 1.6-1 2.1 0"/><path d="M14.5 10.6c.5-1 1.6-1 2.1 0"/>',
+  up: '<circle cx="9" cy="9.2" r="1.4" fill="#fff"/><circle cx="15" cy="9.2" r="1.4" fill="#fff"/>',
+  squint: '<path d="M7.5 10h2.6"/><circle cx="15" cy="10" r="1.4" fill="#fff"/>',
+};
+const MOUTH = {
+  smile: '<path d="M8.5 14.4c1 1.2 2.2 1.8 3.5 1.8s2.5-.6 3.5-1.8"/>',
+  grin: '<path d="M7.8 13.8c1.2 2 2.6 3 4.2 3s3-1 4.2-3z" fill="#fff" stroke="none"/>',
+  o: '<circle cx="12" cy="15" r="2.1" fill="#fff"/>',
+  flat: '<path d="M9.5 15.2h5"/>',
+  wavy: '<path d="M9 15.4c.8-.9 1.6.9 2.4 0s1.6-.9 2.4 0"/>',
+};
+
+const MOODS = {
+  idle: { face: FACE(EYES.open, MOUTH.smile), label: "ready!", cls: "" },
+  listening: { face: FACE(EYES.open, MOUTH.o), label: "listening 👂", cls: "listening" },
+  thinking: { face: FACE(EYES.up, MOUTH.flat), label: "thinking…", cls: "thinking" },
+  happy: { face: FACE(EYES.happy, MOUTH.grin), label: "perfect! ⭐", cls: "happy" },
+  practice: { face: FACE(EYES.open, MOUTH.smile), label: "let's practice 💪", cls: "practice" },
+  confused: { face: FACE(EYES.squint, MOUTH.wavy), label: "didn't catch that 🤔", cls: "confused" },
+};
+
+function setMood(name) {
+  const mood = MOODS[name] || MOODS.idle;
+  const face = $("palFace");
+  face.innerHTML = mood.face;
+  face.className = "pal-face " + mood.cls;
+  $("palMood").textContent = mood.label;
+}
+
+function moodForTurn(turn) {
+  if (!turn.signals.S2.reliable) return "confused";
+  if (turn.drill_words) return turn.signals.S1.score >= 0.75 ? "happy" : "practice";
+  if (turn.signals.S1.score >= 0.99) return "happy";
+  return "practice";
+}
+
 async function init() {
+  setMood("idle");
   target = (await getJSON("/api/story")).target;
   showSentence(target, []);
   refreshPanels();
@@ -64,6 +110,7 @@ async function startRecording() {
   recorder.onstop = () => submitTurn(new Blob(chunks, { type: recorder.mimeType }));
   recorder.start();
   startMeter(stream);
+  setMood("listening");
   $("recBtn").classList.add("recording");
   $("recLabel").textContent = "Tap when you're done";
 }
@@ -121,6 +168,7 @@ function stopMeter() {
 }
 
 async function submitTurn(blob) {
+  setMood("thinking");
   $("reply").textContent = "Hmm, let me listen…";
   try {
     const form = new FormData();
@@ -136,6 +184,7 @@ async function submitTurn(blob) {
       render(await res.json());
     }
   } catch (err) {
+    setMood("confused");
     $("reply").textContent = "Oops, something went wrong: " + err.message;
   } finally {
     $("recBtn").disabled = false;
@@ -144,6 +193,7 @@ async function submitTurn(blob) {
 }
 
 function renderWarmup(result) {
+  setMood(result.heard ? "happy" : "confused");
   // Hide the inline TTS control tags from the visible text.
   $("reply").textContent = result.text.replace(/<\|[^|]*\|>/g, " ").replace(/\s+/g, " ");
   if (result.transcript) $("transcript").textContent = 'I heard: "' + result.transcript + '"';
@@ -174,6 +224,7 @@ function render(turn) {
   }
   $("transcript").textContent = 'I heard: "' + turn.transcript + '"';
 
+  setMood(moodForTurn(turn));
   lastSignals = turn.signals;
   renderSignals(null); // S1/S2 now; S3/S4 fill in when the judges finish
 
@@ -300,6 +351,7 @@ async function refreshPanels() {
 
 async function resetAll() {
   await fetch("/api/reset", { method: "POST" });
+  setMood("idle");
   target = (await getJSON("/api/story")).target;
   showSentence(target, []);
   refreshPanels();
