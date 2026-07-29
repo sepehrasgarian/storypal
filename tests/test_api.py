@@ -116,6 +116,19 @@ class TestUndecodableAudio:
         assert "do NOT correct" in body["prompt"]
 
 
+class TestGreeting:
+    def test_new_learner_gets_intro_with_audio(self, env):
+        body = env["client"].post("/api/greet").json()
+        assert "I'm StoryPal" in body["text"]
+        assert body["audio_url"].startswith("/api/audio/")
+        assert body["target"] == "The cat sat on the mat."
+
+    def test_returning_learner_is_welcomed_back(self, env):
+        post_turn(env)  # one real turn makes the learner "returning"
+        body = env["client"].post("/api/greet").json()
+        assert "Welcome back" in body["text"]
+
+
 class TestNextSentence:
     def test_manual_skip_changes_the_target(self, env):
         first = env["client"].get("/api/story").json()["target"]

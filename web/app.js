@@ -32,6 +32,18 @@ async function init() {
     if (e.key === " " || e.key === "Enter") { e.preventDefault(); stopRecording(); }
   });
 
+  $("startBtn").addEventListener("click", async () => {
+    $("startBtn").disabled = true;
+    try {
+      const greeting = await getJSON2("/api/greet");
+      target = greeting.target;
+      showSentence(target, []);
+      $("reply").textContent = greeting.text;
+      new Audio(greeting.audio_url).play().catch(() => {});
+    } catch (e) { /* greeting is a nicety; never block the session on it */ }
+    $("welcome").classList.add("hidden");
+  });
+
   $("nextBtn").addEventListener("click", async () => {
     const res = await getJSON2("/api/next");
     target = res.target;

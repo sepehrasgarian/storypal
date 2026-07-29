@@ -201,6 +201,38 @@
   .score-good { background: #ECFDF3; color: #15803D; }
   .score-bad { background: #FEF2F2; color: var(--bad); }
 
+  .welcome-overlay {
+    position: fixed; inset: 0; z-index: 10; display: grid; place-items: center;
+    background: rgba(255, 247, 237, .92); backdrop-filter: blur(6px);
+    transition: opacity .35s ease;
+  }
+  .welcome-overlay.hidden { opacity: 0; pointer-events: none; }
+  .welcome-card {
+    background: var(--card); border-radius: 36px; padding: 40px 44px; max-width: 430px;
+    text-align: center; box-shadow: var(--clay-shadow); border: 1px solid rgba(254, 215, 170, .6);
+  }
+  .welcome-face {
+    width: 92px; height: 92px; margin: 0 auto 16px; border-radius: 32px;
+    background: linear-gradient(180deg, #FDBA74, var(--primary));
+    box-shadow: var(--clay-shadow-sm); display: grid; place-items: center;
+    animation: bounce 2.4s ease-in-out infinite;
+  }
+  @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+  .welcome-card h2 { margin: 0 0 8px; font-family: "Baloo 2", sans-serif; font-size: 30px; color: var(--ink-strong); }
+  .welcome-card p { margin: 0 0 22px; font-size: 16px; color: var(--body); }
+  .start-btn {
+    display: inline-flex; align-items: center; gap: 10px;
+    font-family: "Baloo 2", sans-serif; font-size: 21px; font-weight: 700; color: #fff;
+    background: linear-gradient(180deg, #FB923C, var(--primary));
+    border: none; border-radius: 999px; padding: 16px 40px; cursor: pointer;
+    box-shadow: 0 10px 24px rgba(249, 115, 22, .35), inset 0 -5px 10px rgba(154, 52, 18, .25), inset 0 4px 8px rgba(255, 255, 255, .45);
+    transition: transform .15s cubic-bezier(.34, 1.56, .64, 1);
+  }
+  .start-btn:hover { transform: translateY(-2px); }
+  .start-btn:active { transform: scale(.94); }
+  .start-btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+  .welcome-hint { font-size: 12.5px !important; color: var(--ink) !important; opacity: .75; margin-top: 18px !important; margin-bottom: 0 !important; }
+
   footer {
     position: relative; z-index: 1; display: flex; justify-content: center; gap: 10px;
     padding: 4px 20px 26px; flex-wrap: wrap;
@@ -215,6 +247,22 @@
 </head>
 <body>
 <div class="blob b1"></div><div class="blob b2"></div>
+
+<div id="welcome" class="welcome-overlay">
+  <div class="welcome-card">
+    <div class="welcome-face" aria-hidden="true">
+      <svg width="54" height="54" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="10" r="1.3" fill="#fff"/><circle cx="15" cy="10" r="1.3" fill="#fff"/><path d="M8 14.5c1.1 1.3 2.4 2 4 2s2.9-.7 4-2"/></svg>
+    </div>
+    <h2>Hi! I'm StoryPal!</h2>
+    <p>Let's read stories out loud together. I'll listen, cheer you on,
+       and help with the tricky words.</p>
+    <button id="startBtn" class="start-btn">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.14v14l11-7-11-7z"/></svg>
+      Let's read!
+    </button>
+    <p class="welcome-hint">Grown-ups: StoryPal talks — turn the sound on 🔊</p>
+  </div>
+</div>
 
 <header>
   <div class="logo" aria-hidden="true">

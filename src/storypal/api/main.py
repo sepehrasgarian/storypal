@@ -92,6 +92,26 @@ def create_app(services: Services | None = None) -> FastAPI:
     def story():
         return {"target": state.target}
 
+    @app.post("/api/greet")
+    def greet():
+        """Session-opening welcome, spoken by the tutor. Fixed scripts
+        (new vs returning learner) so the audio caches after one call."""
+        svc = services_now()
+        if state.profile.total_turns == 0:
+            text = ("Hi there, I'm StoryPal! I'm so happy to read with you today. "
+                    "When you're ready, hold the big orange button and read the "
+                    "sentence out loud with me!")
+        else:
+            text = ("Welcome back, my friend! I missed reading with you. "
+                    "Let's pick up where we left off — hold the button and "
+                    "read the sentence out loud!")
+        audio_file = svc.tts.synthesize(text, style="celebrate")
+        return {
+            "text": text,
+            "audio_url": f"/api/audio/{Path(audio_file).name}",
+            "target": state.target,
+        }
+
     @app.post("/api/next")
     def next_story():
         """Manual skip: pick a new sentence for the child's level, biased
