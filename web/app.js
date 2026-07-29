@@ -387,31 +387,50 @@ const rank = (counts, attempts) =>
     })
     .sort((a, b) => b.rate - a.rate);
 
+// Plain language first, numbers as support. Someone glancing at this
+// panel should learn what the system has concluded, not have to read a
+// table and infer it.
+function profileSummary(profile, sounds, words) {
+  if (!profile.total_turns) {
+    return "StoryPal is still getting to know this reader.";
+  }
+  const reads = profile.total_turns === 1 ? "1 read" : profile.total_turns + " reads";
+  if (!sounds.length) {
+    return "No trouble spots yet, after " + reads + ". Nothing needs practice.";
+  }
+  const worst = sounds[0];
+  const pct = Math.round((worst.misses / worst.tries) * 100);
+  const example = words.length ? ', like "' + words[0].key + '"' : "";
+  return "After " + reads + ", the sound <b>/" + esc(worst.key) + "/</b> is the " +
+         "hardest, missed in " + pct + "% of tries" + example +
+         ". StoryPal is choosing sentences that practise it.";
+}
+
 async function refreshPanels() {
   const profile = await getJSON("/api/profile");
   const sounds = rank(profile.weak_phonemes, profile.phoneme_attempts);
-  let html = '<div class="metrics">' + metric(profile.level, "level") +
-             metric(profile.total_turns, "graded turns") + "</div>";
+  const wordsAll = rank(profile.missed_words, profile.word_attempts);
+  let html = '<p class="summary">' + profileSummary(profile, sounds, wordsAll) + "</p>";
+  html += '<div class="metrics">' + metric(profile.level, "level") +
+          metric(profile.total_turns, "reads scored") + "</div>";
   // Show the share of attempts missed, not the raw fraction: a reader
   // should not have to do arithmetic, and "8/3" reads as a bug even
   // when it is only old data. The fraction stays in the tooltip.
   if (sounds.length) {
-    html += '<div class="rows">' + sounds.slice(0, 4).map((s) =>
-      '<div class="row" title="missed ' + s.misses + ' of ' + s.tries + ' attempts">' +
-      '<span class="k">/' + esc(s.key) + '/</span>' +
-      '<span class="track"><i class="warnfill" style="width:' +
-      Math.round((s.misses / s.tries) * 100) + '%"></i></span>' +
-      '<span class="v">' + Math.round((s.misses / s.tries) * 100) + "%</span></div>"
-    ).join("") + "</div>";
-  } else {
-    html += '<p class="muted">No weak sounds recorded yet.</p>';
+    html += '<h2 style="margin:16px 0 8px">Sounds to practise</h2>';
+    html += '<div class="rows">' + sounds.slice(0, 4).map((s) => {
+      const pct = Math.round((s.misses / s.tries) * 100);
+      return '<div class="row" title="missed ' + s.misses + ' of ' + s.tries + ' attempts">' +
+        '<span class="k">/' + esc(s.key) + '/</span>' +
+        '<span class="track"><i class="warnfill" style="width:' + pct + '%"></i></span>' +
+        '<span class="v">' + pct + "%</span></div>";
+    }).join("") + "</div>";
   }
-  const words = rank(profile.missed_words, profile.word_attempts).slice(0, 5);
+  const words = wordsAll.slice(0, 5);
   if (words.length) {
-    html += '<h2 style="margin:16px 0 6px">Hardest words</h2><div class="wordchips">' +
+    html += '<h2 style="margin:16px 0 8px">Words to revisit</h2><div class="wordchips">' +
             words.map((w) => '<span title="missed ' + w.misses + ' of ' + w.tries +
-                      ' attempts">' + esc(w.key) + " · " +
-                      Math.round((w.misses / w.tries) * 100) + "%</span>").join("") + "</div>";
+                      ' attempts">' + esc(w.key) + "</span>").join("") + "</div>";
   }
   $("profile").innerHTML = html;
 

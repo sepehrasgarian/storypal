@@ -314,6 +314,12 @@
     font-variant-numeric: tabular-nums;
   }
   .muted { color: var(--slate-muted); font-size: 12.5px; }
+  .summary {
+    margin: 0 0 14px; font-size: 13px; line-height: 1.55; color: var(--slate-ink);
+    background: #fff; border: 1px solid var(--slate-line); border-radius: 10px;
+    padding: 11px 13px;
+  }
+  .summary b { color: var(--sig-info); }
 
   .welcome-overlay {
     position: fixed; inset: 0; z-index: 10; display: grid; place-items: center;
@@ -414,9 +420,9 @@
   <section class="panel">
     <h2>
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-      Learner <span class="tier-tag">tier 2</span>
+      What StoryPal remembers <span class="tier-tag">tier 2</span>
     </h2>
-    <div id="profile"><p class="muted">No history yet.</p></div>
+    <div id="profile"><p class="muted">Still getting to know this reader.</p></div>
   </section>
 
   <section id="stage">
